@@ -12,6 +12,25 @@ meta:
     بدون خطا پردازش شود.
 
 # ---------------------------------------------------------------------
+# Constraints (IDs uniqueness, cross-references, file strategy)
+meta_constraints:
+  id_uniqueness: >
+    IDs must be unique within each section (datasets, features, patterns,
+    trading_rules, backtests, etc.).
+  cross_references: >
+    References such as dataset_used, pattern_refs, and rule_id must point to
+    IDs defined in the relevant section.
+  file_strategy: >
+    Preferred default is a single kb/*_knowledge.yaml; if split, each fragment
+    must still satisfy this schema and maintain valid references.
+  allowed_values: >
+    Suggested allowed sets:
+      patterns.type in {forward, backward, meta};
+      status in {exploratory, candidate, active, watchlist, deprecated};
+      direction in {long, short, filter_only};
+      rule_relations.type in {conflict, confirm, complement}.
+
+# ---------------------------------------------------------------------
 # 1. DATASETS – تعریف منابع داده
 # ---------------------------------------------------------------------
 datasets:

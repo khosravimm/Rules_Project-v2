@@ -20,6 +20,8 @@ meta:
     - "در این نسخه هنوز هیچ الگوی نهایی یا قانون معاملاتی ثبت نشده است."
     - "بعد از اجرای data_prep_4h5m و اولین دور pattern mining این فایل باید غنی شود."
     - "همه‌ی تغییرات مهم در این فایل باید نسخه‌ی kb_version را افزایش دهد."
+    - "روابط lead-lag و Cross-Market هنوز ثبت نشده؛ پس از اجرای پایپلاین cross_market_analysis و continuous_rebacktest_and_refresh باید market_relations و cross_market_patterns تکمیل شود."
+    - "پایش دوره‌ای و بک‌تست مجدد (پایپلاین continuous_rebacktest_and_refresh) برای به‌روزرسانی الگوها، قوانین، backtests و performance_over_time الزامی است."
 
 # ---------------------------------------------------------------------
 # 1. DATASETS – تعریف منابع داده استفاده‌شده

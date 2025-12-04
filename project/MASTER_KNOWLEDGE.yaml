@@ -398,6 +398,14 @@ knowledge_base:
       پیچیدگی، به چند فایل مجزا (patterns, trading_rules, backtests, ...)
       شکسته شود.
 
+  enforcement:
+    single_file_default: true
+    id_uniqueness: true
+    cross_reference_validation: true
+    notes:
+      - "ولیدیشن ابزار rules_kb شناسه‌های تکراری و ارجاع‌های نامعتبر را خطا می‌دهد؛ هر فایل قبل از مصرف باید پاس شود."
+      - "اگر بعدها به چند فایل شکسته شود، هر بخش باید همچنان با KB_SCHEMA هم‌خوان و cross-reference معتبر داشته باشد."
+
 # ---------------------------------------------------------------------
 # 9. PIPELINES – پایپلاین‌های اصلی پروژه
 # ---------------------------------------------------------------------
@@ -449,6 +457,23 @@ pipelines:
       - "kb/btcusdt_4h_knowledge.yaml"
     outputs:
       - "kb/btcusdt_4h_knowledge.yaml (sections: market_relations, cross_market_patterns)"
+
+  - id: "continuous_rebacktest_and_refresh"
+    name: "بروزرسانی پیوسته، بک‌تست مجدد و کشف الگوهای تازه"
+    description: >
+      اجرای دوره‌ای (مثلاً ماهانه یا بر اساس N کندل 4h) برای:
+      1) به‌روزرسانی دیتاست‌های 4h/5m و پاک‌سازی کندل‌های ناقص؛
+      2) کشف الگوها/روابط جدید در هر دو تایم‌فریم و به‌روزرسانی بخش patterns؛
+      3) بک‌تست مجدد قوانین معاملاتی و به‌روزرسانی backtests، performance_over_time، status_history؛
+      4) پایش drift و به‌روزرسانی وضعیت الگوها (status) و برچسب‌های قدرت/دقت؛
+      5) در فاز بعد، گسترش به روابط Cross-Market و Lead-Lag برای بازارهای همسو/مؤثر بر BTC.
+    inputs:
+      - "kb/btcusdt_4h_knowledge.yaml"
+      - "data/btcusdt_4h_features.parquet"
+      - "data/btcusdt_5m_raw.parquet"
+      - "data/multi_market_4h.parquet"
+    outputs:
+      - "kb/btcusdt_4h_knowledge.yaml (sections: patterns, trading_rules, backtests, performance_over_time, status_history, cross_market_patterns, market_relations)"
 
 # ---------------------------------------------------------------------
 # 10. IMPLEMENTATION_NOTES – یادداشت‌های اجرایی و اصول ثابت

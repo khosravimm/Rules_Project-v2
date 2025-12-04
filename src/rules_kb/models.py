@@ -12,6 +12,24 @@ class KnowledgeValidationError(ValueError):
     """Raised when the knowledge base structure violates the expected schema."""
 
 
+# Allowed value sets for soft enum validation
+ALLOWED_PATTERN_TYPES = {"forward", "backward", "meta"}
+ALLOWED_STATUSES = {"exploratory", "candidate", "active", "watchlist", "deprecated"}
+ALLOWED_DIRECTIONS = {"long", "short", "filter_only"}
+ALLOWED_RULE_REL_TYPES = {"conflict", "confirm", "complement"}
+
+
+def _validate_enum(value: Optional[str], allowed: set[str], field_name: str) -> Optional[str]:
+    """Validate that a string value is within the allowed set; raises on mismatch."""
+
+    if value is None:
+        return None
+    lower = value.lower()
+    if lower not in allowed:
+        raise KnowledgeValidationError(f"Invalid value '{value}' for {field_name}; allowed: {sorted(allowed)}")
+    return lower
+
+
 # --------------------------------------------------------------------------- #
 # Shared primitives
 # --------------------------------------------------------------------------- #
@@ -143,6 +161,13 @@ class PatternRule(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="after")
+    def validate_enums(self) -> "PatternRule":
+        self.type = _validate_enum(self.type, ALLOWED_PATTERN_TYPES, "patterns.type")  # type: ignore[assignment]
+        self.status = _validate_enum(self.status, ALLOWED_STATUSES, "patterns.status")  # type: ignore[assignment]
+        self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "patterns.direction")  # type: ignore[assignment]
+        return self
+
 
 class TradingRuleEntry(BaseModel):
     """Entry configuration for a trading rule."""
@@ -196,6 +221,12 @@ class TradingRule(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="after")
+    def validate_enums(self) -> "TradingRule":
+        self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "trading_rules.direction")  # type: ignore[assignment]
+        self.status = _validate_enum(self.status, ALLOWED_STATUSES, "trading_rules.status")  # type: ignore[assignment]
+        return self
+
 
 class RuleRelationEvidence(BaseModel):
     """Evidence supporting a relation between two rules."""
@@ -217,6 +248,11 @@ class RuleRelation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="after")
+    def validate_enums(self) -> "RuleRelation":
+        self.type = _validate_enum(self.type, ALLOWED_RULE_REL_TYPES, "rule_relations.type")  # type: ignore[assignment]
+        return self
+
 
 class CrossMarketPattern(BaseModel):
     """Pattern that spans multiple markets."""
@@ -230,6 +266,11 @@ class CrossMarketPattern(BaseModel):
     status: str
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_enums(self) -> "CrossMarketPattern":
+        self.status = _validate_enum(self.status, ALLOWED_STATUSES, "cross_market_patterns.status")  # type: ignore[assignment]
+        return self
 
 
 class MarketRelationIndicators(BaseModel):
@@ -629,6 +670,7 @@ class KnowledgeBaseStrategy(BaseModel):
     concept: str
     main_sections: List[str]
     file_strategy: Dict[str, Any]
+    enforcement: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(extra="forbid")
 

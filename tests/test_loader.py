@@ -77,3 +77,74 @@ def test_invalid_pattern_dataset_reference(tmp_path: Path):
     with pytest.raises(KnowledgeValidationError):
         load_knowledge(faulty_path)
 
+
+def test_invalid_enum_values(tmp_path: Path):
+    faulty_path = tmp_path / "faulty_enum.yaml"
+    faulty_path.write_text(
+        dedent(
+            """
+            meta:
+              kb_version: "0.0.1"
+              schema_version: "0.1.0"
+              project_codename: "Test"
+              symbol: "TEST"
+              market: "TEST_PERP"
+            datasets:
+              - id: "ds1"
+                symbol: "TEST"
+                market: "TEST_PERP"
+                timeframe: "4h"
+                source: ["demo"]
+                date_range:
+                  start: "2024-01-01"
+                  end: "2024-02-01"
+                n_candles: 10
+                file_path: "data/test.parquet"
+            features: []
+            clusters: []
+            patterns:
+              - id: "p1"
+                name: "Bad enum"
+                description: "pattern with invalid status and type"
+                window_length: 3
+                timeframe: "4h"
+                type: "unknown_type"
+                conditions:
+                  - feature: "A"
+                    operator: ">"
+                    value: 0
+                target: "T"
+                dataset_used: "ds1"
+                status: "not_a_status"
+                tags: []
+            trading_rules:
+              - id: "r1"
+                name: "Rule with bad direction"
+                description: "invalid direction"
+                symbol: "TEST"
+                direction: "sideways"
+                entry:
+                  pattern_refs: ["p1"]
+                  extra_conditions: []
+                exit:
+                  tp_sl:
+                    tp_multiple: 1.0
+                    sl_multiple: 1.0
+                    tstop_n_bars: 2
+                risk:
+                  max_leverage: 5
+                  position_size_factor: 0.5
+                dataset_used: "ds1"
+                status: "candidate"
+            rule_relations: []
+            cross_market_patterns: []
+            market_relations: []
+            backtests: []
+            performance_over_time: []
+            status_history: []
+            """
+        ).strip()
+    )
+
+    with pytest.raises(KnowledgeValidationError):
+        load_knowledge(faulty_path)
