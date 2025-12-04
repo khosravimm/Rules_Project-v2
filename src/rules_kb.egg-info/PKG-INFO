@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: rules-kb
+Version: 0.1.0
+Summary: Knowledge base loader, validator, and CLI for BTC futures rules.
+Requires-Python: >=3.11
+Requires-Dist: pydantic>=2.7
+Requires-Dist: pyyaml>=6.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
