@@ -138,6 +138,8 @@ def classify_strength(acc: float, n: int) -> str:
 
 def parse_sequence(seq_raw: Any) -> List[str]:
     """Parse a sequence representation into list of ['UP', 'DOWN', ...]."""
+    if hasattr(seq_raw, "tolist"):
+        seq_raw = seq_raw.tolist()
     if isinstance(seq_raw, (list, tuple)):
         seq_list = list(seq_raw)
     elif isinstance(seq_raw, str):
@@ -154,9 +156,9 @@ def parse_sequence(seq_raw: Any) -> List[str]:
     dirs: List[str] = []
     for token in seq_list:
         t = token.upper()
-        if t in {"U", "UP", "+1", "1"}:
+        if t in {"U", "UP", "+1", "1", "RET_UP"}:
             dirs.append("UP")
-        elif t in {"D", "DOWN", "-1"}:
+        elif t in {"D", "DOWN", "-1", "RET_DOWN"}:
             dirs.append("DOWN")
         elif t in {"0", "FLAT"}:
             dirs.append("FLAT")
@@ -179,7 +181,9 @@ def read_kb(path: Path) -> Dict[str, Any]:
 
 def write_kb_atomic(path: Path, data: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, encoding="utf-8", dir=str(path.parent)
+    ) as tmp:
         yaml.safe_dump(data, tmp, allow_unicode=True, sort_keys=False)
         tmp_path = Path(tmp.name)
     tmp_path.replace(path)

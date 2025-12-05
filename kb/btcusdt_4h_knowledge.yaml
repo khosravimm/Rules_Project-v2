@@ -202,7 +202,737 @@ patterns:
       data_range:
         start: '2024-01-01'
         end: '2025-12-01'
-    items: []
+    items:
+    - id: PAT4H_DIR_L2_001
+      name: 2-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        length: 2
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 970
+        sample_count: 970
+        accuracy: 0.554639175257732
+        baseline_accuracy: 0.554639175257732
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_2
+    - id: PAT4H_DIR_L3_002
+      name: 3-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 3
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 432
+        sample_count: 432
+        accuracy: 0.5763888888888888
+        baseline_accuracy: 0.5763888888888888
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_3
+    - id: PAT4H_DIR_L3_003
+      name: 3-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - UP
+        - UP
+        length: 3
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 513
+        sample_count: 513
+        accuracy: 0.5536062378167641
+        baseline_accuracy: 0.44639376218323584
+        lift: 0.10721247563352826
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_3
+    - id: PAT4H_DIR_L4_004
+      name: 4-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 4
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 183
+        sample_count: 183
+        accuracy: 0.5956284153005464
+        baseline_accuracy: 0.5956284153005464
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: strong
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_4
+    - id: PAT4H_DIR_L4_005
+      name: 4-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - UP
+        - DOWN
+        length: 4
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 267
+        sample_count: 267
+        accuracy: 0.5692883895131086
+        baseline_accuracy: 0.5692883895131086
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_4
+    - id: PAT4H_DIR_L4_006
+      name: 4-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - UP
+        - UP
+        - UP
+        length: 4
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 284
+        sample_count: 284
+        accuracy: 0.5845070422535211
+        baseline_accuracy: 0.4154929577464789
+        lift: 0.16901408450704225
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_4
+    - id: PAT4H_DIR_L4_007
+      name: 4-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 4
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 249
+        sample_count: 249
+        accuracy: 0.5622489959839357
+        baseline_accuracy: 0.5622489959839357
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_4
+    - id: PAT4H_DIR_L5_008
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 74
+        sample_count: 74
+        accuracy: 0.6216216216216216
+        baseline_accuracy: 0.6216216216216216
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: strong
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_009
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - DOWN
+        - UP
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 130
+        sample_count: 130
+        accuracy: 0.5923076923076923
+        baseline_accuracy: 0.5923076923076923
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_010
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - UP
+        - DOWN
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 115
+        sample_count: 115
+        accuracy: 0.591304347826087
+        baseline_accuracy: 0.591304347826087
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_011
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - UP
+        - UP
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 136
+        sample_count: 136
+        accuracy: 0.5955882352941176
+        baseline_accuracy: 0.5955882352941176
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: strong
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_012
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - DOWN
+        - UP
+        - UP
+        - UP
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 134
+        sample_count: 134
+        accuracy: 0.582089552238806
+        baseline_accuracy: 0.417910447761194
+        lift: 0.16417910447761197
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_013
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - UP
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 129
+        sample_count: 129
+        accuracy: 0.5658914728682171
+        baseline_accuracy: 0.5658914728682171
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_014
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - UP
+        - DOWN
+        - DOWN
+        - UP
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 149
+        sample_count: 149
+        accuracy: 0.5637583892617449
+        baseline_accuracy: 0.5637583892617449
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_015
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - DOWN
+        - UP
+        - UP
+        - UP
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 166
+        sample_count: 166
+        accuracy: 0.5783132530120482
+        baseline_accuracy: 0.5783132530120482
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_016
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - DOWN
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 109
+        sample_count: 109
+        accuracy: 0.5779816513761468
+        baseline_accuracy: 0.5779816513761468
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_017
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - DOWN
+        - DOWN
+        - DOWN
+        - UP
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 140
+        sample_count: 140
+        accuracy: 0.55
+        baseline_accuracy: 0.45
+        lift: 0.10000000000000003
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_018
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - DOWN
+        - UP
+        - UP
+        - UP
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 150
+        sample_count: 150
+        accuracy: 0.5866666666666667
+        baseline_accuracy: 0.41333333333333333
+        lift: 0.17333333333333334
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
+    - id: PAT4H_DIR_L5_019
+      name: 5-step direction sequence → RET_UP
+      timeframe: 4h
+      pattern_type: dir_sequence_forward
+      source:
+        dataset: btcusdt_4h
+        miner: auto_dir_sequence_miner_v1
+        discovered_at: '2025-12-05'
+        discovered_from: 4h_only
+      sequence:
+        dirs:
+        - UP
+        - UP
+        - DOWN
+        - DOWN
+        - DOWN
+        length: 5
+      target:
+        variable: DIR_4H_NEXT
+        favored_class: RET_UP
+      stats:
+        support: 120
+        sample_count: 120
+        accuracy: 0.5583333333333333
+        baseline_accuracy: 0.5583333333333333
+        lift: 0.0
+        avg_ret_next: null
+      scoring:
+        strength_bucket: medium
+        reliability_comment: ''
+      lifecycle:
+        status: exploratory
+        last_evaluated_at: '2025-12-05'
+        notes: []
+      tags:
+      - auto
+      - forward
+      - dir_sequence
+      - length_5
 trading_rules: []
 rule_relations: []
 cross_market_patterns: []
