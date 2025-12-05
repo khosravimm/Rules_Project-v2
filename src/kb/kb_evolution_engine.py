@@ -214,9 +214,9 @@ def update_family_kb_from_parquet(source_tag: str = "AdvancedPhase3") -> Tuple[i
             fam["agg_support"] = float(row.agg_support)
             fam["agg_lift"] = float(row.agg_lift)
             fam["agg_stability"] = float(row.agg_stability) if not np.isnan(row.agg_stability) else None
-            fam["window_sizes"] = list(row.dominant_window_sizes)
-            fam["pattern_types"] = list(row.dominant_pattern_types)
-            fam["member_count"] = len(row.member_keys)
+            fam["window_sizes"] = [int(x) for x in row.dominant_window_sizes]
+            fam["pattern_types"] = [str(x) for x in row.dominant_pattern_types]
+            fam["member_count"] = int(len(row.member_keys))
             fam["strength_level"] = status
             fam["status"] = status
             fam["updated_at"] = now
@@ -240,13 +240,13 @@ def update_family_kb_from_parquet(source_tag: str = "AdvancedPhase3") -> Tuple[i
                     "timeframe": row.timeframe,
                     "strength_level": status,
                     "status": status,
-                    "window_sizes": list(row.dominant_window_sizes),
-                    "pattern_types": list(row.dominant_pattern_types),
+                    "window_sizes": [int(x) for x in row.dominant_window_sizes],
+                    "pattern_types": [str(x) for x in row.dominant_pattern_types],
                     "agg_support": float(row.agg_support),
                     "agg_lift": float(row.agg_lift),
                     "agg_stability": float(row.agg_stability) if not np.isnan(row.agg_stability) else None,
-                    "member_count": len(row.member_keys),
-                    "notes": row.notes,
+                    "member_count": int(len(row.member_keys)),
+                    "notes": str(row.notes),
                     "created_at": now,
                     "updated_at": now,
                     "source": source_tag,

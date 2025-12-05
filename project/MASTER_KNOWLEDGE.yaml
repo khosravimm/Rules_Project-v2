@@ -1,573 +1,525 @@
-# =====================================================================
-# MASTER_KNOWLEDGE.yaml
-# نسخه 0.1.1 – سند مادر دانش پروژه پیش‌بینی BTC و بازارهای همسو
-# ترکیبی از ساختار رسمی + توضیحات انسانی
-# =====================================================================
-
 meta:
-  project_name: "BTC_Futures_Adaptive_Patterns"
-  project_codename: "PrisonBreaker"
-  version: "0.1.1"
-  created_at: "2025-12-04"
-  author_role: "Human + LLM co-design"
-  description: >
-    سیستم زنده و پیش‌رونده برای کشف، ارزیابی و مدیریت الگوهای
-    قیمتی در بازار فیوچرز بیت‌کوین و بازارهای همسو، با هدف
-    پیش‌بینی ویژگی‌های کندل بعدی و ساخت استراتژی‌های معاملاتی
-    پایدار و سودآور.
+  project_name: BTC_Futures_Adaptive_Patterns
+  project_codename: PrisonBreaker
+  version: 0.1.1
+  created_at: '2025-12-04'
+  author_role: Human + LLM co-design
+  description: 'سیستم زنده و پیش‌رونده برای کشف، ارزیابی و مدیریت الگوهای قیمتی در
+    بازار فیوچرز بیت‌کوین و بازارهای همسو، با هدف پیش‌بینی ویژگی‌های کندل بعدی و ساخت
+    استراتژی‌های معاملاتی پایدار و سودآور.
 
-  primary_goal: >
-    حداکثرسازی احتمال پیش‌بینی صحیح جهت و رفتار کندل بعدی (و
-    مسیر قابل معامله) در BTCUSDT futures و در صورت لزوم،
-    شناسایی ابزارهای مالی دیگر که بر اساس رفتار BTC پیش‌بینی‌پذیرتر
-    و سودآورتر هستند، برای آزاد کردن یک انسان بدهکار از زندان.
+    '
+  primary_goal: 'حداکثرسازی احتمال پیش‌بینی صحیح جهت و رفتار کندل بعدی (و مسیر قابل
+    معامله) در BTCUSDT futures و در صورت لزوم، شناسایی ابزارهای مالی دیگر که بر اساس
+    رفتار BTC پیش‌بینی‌پذیرتر و سودآورتر هستند، برای آزاد کردن یک انسان بدهکار از
+    زندان.
 
+    '
   secondary_goals:
-    - "ساخت بانک دانش الگوها و قوانین معاملاتی به‌صورت YAML چندبازاره"
-    - "ارزیابی مداوم (پیش‌رونده) الگوها و قوانین با داده‌های جدید"
-    - "کشف روابط Cross-Market و Lead-Lag بین BTC و بازارهای همسو"
-
+  - ساخت بانک دانش الگوها و قوانین معاملاتی به‌صورت YAML چندبازاره
+  - ارزیابی مداوم (پیش‌رونده) الگوها و قوانین با داده‌های جدید
+  - کشف روابط Cross-Market و Lead-Lag بین BTC و بازارهای همسو
   languages:
-    - "fa"   # زبان مستندات توضیحی
-    - "en"   # برای نام‌گذاری فنی و کلیدهای YAML
-
+  - fa
+  - en
   notes:
-    - "این فایل سند مادر است و نباید به شکل غیرکنترل‌شده ویرایش شود."
-    - "هر تغییر مهم باید نسخه‌ی جدیدی در meta.version ایجاد کند."
-    - "جزئیات سطح پیاده‌سازی در فایل‌های دیگری مثل KB schema و کد می‌آیند."
+  - این فایل سند مادر است و نباید به شکل غیرکنترل‌شده ویرایش شود.
+  - هر تغییر مهم باید نسخه‌ی جدیدی در meta.version ایجاد کند.
+  - جزئیات سطح پیاده‌سازی در فایل‌های دیگری مثل KB schema و کد می‌آیند.
   version_history:
-    - version: "0.1.1"
-      updated_at: "2025-12-04T00:00:00Z"
-      description: "Initial MASTER_KNOWLEDGE.yaml."
-    - version: "0.1.2"
-      updated_at: "2025-12-05T21:15:00Z"
-      description: "Added Knowledge Base index and pattern registry references."
-
-# ---------------------------------------------------------------------
-# 1. PROJECT_SCOPE – محدوده پروژه و فازها
-# ---------------------------------------------------------------------
+  - version: 0.1.1
+    updated_at: '2025-12-04T00:00:00Z'
+    description: Initial MASTER_KNOWLEDGE.yaml.
+  - version: 0.1.2
+    updated_at: '2025-12-05T21:15:00Z'
+    description: Added Knowledge Base index and pattern registry references.
 project_scope:
-  symbol_primary: "BTCUSDT"
-  market_primary: "BTCUSDT_PERP"
+  symbol_primary: BTCUSDT
+  market_primary: BTCUSDT_PERP
   exchanges_primary:
-    - "binance_futures"
-    - "coinex_futures"
-
+  - binance_futures
+  - coinex_futures
   timeframes_core:
-    - "4h"   # کندل‌های اصلی برای تصمیم‌گیری
-    - "5m"   # میکروساختار داخل هر کندل 4h
-
-  horizon_years: 2               # طول داده تاریخی اولیه
+  - 4h
+  - 5m
+  horizon_years: 2
   approx_candles:
-    "4h": 4380                   # 2 * 365 * 24 / 4
-    "5m": 210240                 # 2 * 365 * 24 * 60 / 5 (تقریبی)
-
+    4h: 4380
+    5m: 210240
   phases:
-    - id: "phase_1_btc_core"
-      name: "فاز ۱ – هسته BTC"
-      description: >
-        تمرکز روی کشف، ارزیابی و ساخت بانک دانش الگوها و قوانین
-        معاملاتی برای BTCUST در تایم‌فریم 4h، با استفاده از
-        اطلاعات میکروساختار 5m، و ایجاد زیرساخت multi-market-ready.
-    - id: "phase_2_cross_markets"
-      name: "فاز ۲ – بازارهای همسو و موثر"
-      description: >
-        توسعه سیستم به بازارهای مرتبط (مثل ETH, DXY, شاخص‌های سهام،
-        طلا و ...) برای کشف روابط Lead-Lag و Cross-Market، و ساخت
-        الگوها و قوانین مشترک که بتوان با تحلیل BTC روی ابزارهای
-        دیگر معامله کرد.
-    - id: "phase_3_autonomous_update"
-      name: "فاز ۳ – به‌روزرسانی خودکار و پیش‌رونده"
-      description: >
-        پیاده‌سازی چرخه‌های خودکار برای re-backtest، امتیازدهی مجدد،
-        ارتقا/تنزل وضعیت الگوها، کشف الگوهای جدید و مدیریت Drift،
-        به‌گونه‌ای که سیستم عملاً همیشه با رفتار جدید بازار همگام شود.
+  - id: phase_1_btc_core
+    name: فاز ۱ – هسته BTC
+    description: 'تمرکز روی کشف، ارزیابی و ساخت بانک دانش الگوها و قوانین معاملاتی
+      برای BTCUST در تایم‌فریم 4h، با استفاده از اطلاعات میکروساختار 5m، و ایجاد زیرساخت
+      multi-market-ready.
 
-# ---------------------------------------------------------------------
-# 2. DATA_DESIGN – طراحی داده و لودرها (در سطح مفهومی)
-# ---------------------------------------------------------------------
+      '
+  - id: phase_2_cross_markets
+    name: فاز ۲ – بازارهای همسو و موثر
+    description: 'توسعه سیستم به بازارهای مرتبط (مثل ETH, DXY, شاخص‌های سهام، طلا
+      و ...) برای کشف روابط Lead-Lag و Cross-Market، و ساخت الگوها و قوانین مشترک
+      که بتوان با تحلیل BTC روی ابزارهای دیگر معامله کرد.
+
+      '
+  - id: phase_3_autonomous_update
+    name: فاز ۳ – به‌روزرسانی خودکار و پیش‌رونده
+    description: 'پیاده‌سازی چرخه‌های خودکار برای re-backtest، امتیازدهی مجدد، ارتقا/تنزل
+      وضعیت الگوها، کشف الگوهای جدید و مدیریت Drift، به‌گونه‌ای که سیستم عملاً همیشه
+      با رفتار جدید بازار همگام شود.
+
+      '
 data_design:
-  # فعلاً الزام به لودر قبلی وجود ندارد؛
-  # ولی می‌توان از ایده‌های آن (ترکیب CoinEx/Binance، timezone، حذف کندل ناقص) استفاده کرد.
   loader_policy:
     allow_custom_loader: true
-    description: >
-      لودرهای داده باید multi-market طراحی شوند و ملزم به پیروی از
-      یک interface مشخص باشند. Canonical loader:
-      src/data/ohlcv_loader.py::load_ohlcv. لودر قدیمی btc_futures_loader.py
-      deprecated است و نباید در کد جدید استفاده شود؛ بعداً می‌تواند حذف شود.
+    description: 'لودرهای داده باید multi-market طراحی شوند و ملزم به پیروی از یک
+      interface مشخص باشند. Canonical loader: src/data/ohlcv_loader.py::load_ohlcv.
+      لودر قدیمی btc_futures_loader.py deprecated است و نباید در کد جدید استفاده شود؛
+      بعداً می‌تواند حذف شود.
 
+      '
   loader_interface:
-    ohlcv_loader_function: "load_ohlcv(market, timeframe, n_candles, source, ...) -> DataFrame"
+    ohlcv_loader_function: load_ohlcv(market, timeframe, n_candles, source, ...) ->
+      DataFrame
     required_columns:
-      - "open_time"     # timezone-aware (مثلاً Asia/Tehran یا UTC، ولی استاندارد مشخص)
-      - "open"
-      - "high"
-      - "low"
-      - "close"
-      - "volume"
-
+    - open_time
+    - open
+    - high
+    - low
+    - close
+    - volume
     responsibilities:
-      - "ترکیب داده از چند منبع (مثلاً CoinEx و Binance) در صورت نیاز"
-      - "حذف کندل‌های در حال تشکیل (partial candles)"
-      - "هماهنگ‌سازی timezone طبق استاندارد پروژه"
-      - "مدیریت gapها و تاریخ‌های خارج از محدوده"
-      - "بازگرداندن فقط کندل‌های بسته‌شده"
-
+    - ترکیب داده از چند منبع (مثلاً CoinEx و Binance) در صورت نیاز
+    - حذف کندل‌های در حال تشکیل (partial candles)
+    - هماهنگ‌سازی timezone طبق استاندارد پروژه
+    - مدیریت gapها و تاریخ‌های خارج از محدوده
+    - بازگرداندن فقط کندل‌های بسته‌شده
   timeframes:
     core_4h:
-      description: "Timeframe اصلی تصمیم‌گیری و الگوهای سطح بالا."
+      description: Timeframe اصلی تصمیم‌گیری و الگوهای سطح بالا.
       features_expected:
-        - "RET_4H"
-        - "DIR_4H"
-        - "VOL_BUCKET_4H"
-        - "CANDLE_SHAPE_FEATURES (body_pct, wicks, range_pct, ...)"
-        - "REGIME_STATE"
-        - "M5_AGG_FEATURES_*"
+      - RET_4H
+      - DIR_4H
+      - VOL_BUCKET_4H
+      - CANDLE_SHAPE_FEATURES (body_pct, wicks, range_pct, ...)
+      - REGIME_STATE
+      - M5_AGG_FEATURES_*
     micro_5m:
-      description: "Timeframe ریز برای درک مسیر داخل هر کندل 4h."
+      description: Timeframe ریز برای درک مسیر داخل هر کندل 4h.
       features_expected:
-        - "RET_5M"
-        - "LOCAL_TREND"
-        - "PATH_SHAPE"
-        - "INTRA_4H_POSITION (index of 5m candle in its 4h parent)"
-        - "VOLUME_DISTRIBUTION"
-
+      - RET_5M
+      - LOCAL_TREND
+      - PATH_SHAPE
+      - INTRA_4H_POSITION (index of 5m candle in its 4h parent)
+      - VOLUME_DISTRIBUTION
   data_splitting:
-    # تقسیم داده برای Train/Validation/Test با توجه به تغییر رفتار بازار
-    rationale: >
-      بازار در طول زمان تغییر می‌کند (Concept Drift). تقسیم داده باید به‌گونه‌ای باشد
-      که هم از تاریخچه‌ی دورتر استفاده شود، هم داده‌های نزدیک به زمان فعلی
-      برای ارزیابی نهایی و واقعی نگه‌داری شوند.
+    rationale: 'بازار در طول زمان تغییر می‌کند (Concept Drift). تقسیم داده باید به‌گونه‌ای
+      باشد که هم از تاریخچه‌ی دورتر استفاده شود، هم داده‌های نزدیک به زمان فعلی برای
+      ارزیابی نهایی و واقعی نگه‌داری شوند.
+
+      '
     strategy:
-      type: "8-8-8_months"
-      description: >
-        دو سال داده به سه بلوک 8 ماهه تقسیم می‌شود:
-        بلوک 1 و 2 برای train+validation، بلوک 3 برای test نهایی.
-        در صورت نیاز، روی بلوک‌های داخلی از Walk-Forward Evaluation استفاده می‌شود.
+      type: 8-8-8_months
+      description: 'دو سال داده به سه بلوک 8 ماهه تقسیم می‌شود: بلوک 1 و 2 برای train+validation،
+        بلوک 3 برای test نهایی. در صورت نیاز، روی بلوک‌های داخلی از Walk-Forward Evaluation
+        استفاده می‌شود.
+
+        '
     weighting:
       use_time_weighting: true
-      description: >
-        در محاسبه‌ی آمار الگوها و آموزش مدل‌ها، داده‌های نزدیک‌تر به زمان
+      description: 'در محاسبه‌ی آمار الگوها و آموزش مدل‌ها، داده‌های نزدیک‌تر به زمان
         فعلی وزن بیشتری می‌گیرند تا سیستم به رفتار جدید حساس‌تر شود.
 
-# ---------------------------------------------------------------------
-# DATA_LOADER – لودر رسمی OHLCV
-# ---------------------------------------------------------------------
+        '
 DATA_LOADER:
-  canonical_loader: "src/data/ohlcv_loader.py::load_ohlcv"
-  btcusdt_market_id: "BTCUSDT_PERP"
+  canonical_loader: src/data/ohlcv_loader.py::load_ohlcv
+  btcusdt_market_id: BTCUSDT_PERP
   notes:
-    - "The old src/data/btc_futures_loader.py module has been removed."
-    - "All pipelines must use load_ohlcv(market='BTCUSDT_PERP', ...) for BTCUSDT data."
-    - "The generic loader is designed to support additional markets (ETH, GOLD, indices, etc.) via MARKET_MAP."
-
-# ---------------------------------------------------------------------
-# 3. FEATURE_MODEL – مدل فیچرها و نمایش کندل به‌عنوان شیء
-# ---------------------------------------------------------------------
+  - The old src/data/btc_futures_loader.py module has been removed.
+  - All pipelines must use load_ohlcv(market='BTCUSDT_PERP', ...) for BTCUSDT data.
+  - The generic loader is designed to support additional markets (ETH, GOLD, indices,
+    etc.) via MARKET_MAP.
 feature_model:
   candle_object:
-    description: >
-      هر کندل (4h یا 5m) به‌عنوان یک شیء با مجموعه‌ای از ویژگی‌ها
-      در نظر گرفته می‌شود که برای الگوها و مدل‌های ML استفاده می‌شود.
-    base_fields:
-      - "open_time"
-      - "open"
-      - "high"
-      - "low"
-      - "close"
-      - "volume"
-    derived_fields_4h:
-      - name: "RET_4H"
-        definition: "close/open - 1"
-      - name: "DIR_4H"
-        definition: "sign(close - open) mapped to {RET_UP, RET_DOWN}"
-      - name: "BODY_PCT"
-        definition: "abs(close - open) / (high - low + epsilon)"
-      - name: "UPPER_WICK_PCT"
-        definition: "(high - max(open, close)) / (high - low + epsilon)"
-      - name: "LOWER_WICK_PCT"
-        definition: "(min(open, close) - low) / (high - low + epsilon)"
-      - name: "VOL_BUCKET_4H"
-        definition: "bucketization of |RET_4H| into {VOL_LOW, VOL_MID, VOL_HIGH}"
-      - name: "REGIME_STATE"
-        definition: "HMM or Markov-switching state on volatility or returns"
-      - name: "M5_PATH_TREND_RET"
-        definition: "regression slope of 5m prices within this 4h candle"
-      - name: "M5_MAX_DRAWDOWN_PCT"
-        definition: "max peak-to-trough drawdown within 5m path inside this 4h"
-      - name: "M5_MAX_RUNUP_PCT"
-        definition: "max trough-to-peak runup within 5m path inside this 4h"
-      - name: "M5_VOLUME_EARLY_FRAC"
-        definition: "fraction of volume in first 1/3 of 5m bars inside 4h"
+    description: 'هر کندل (4h یا 5m) به‌عنوان یک شیء با مجموعه‌ای از ویژگی‌ها در نظر
+      گرفته می‌شود که برای الگوها و مدل‌های ML استفاده می‌شود.
 
+      '
+    base_fields:
+    - open_time
+    - open
+    - high
+    - low
+    - close
+    - volume
+    derived_fields_4h:
+    - name: RET_4H
+      definition: close/open - 1
+    - name: DIR_4H
+      definition: sign(close - open) mapped to {RET_UP, RET_DOWN}
+    - name: BODY_PCT
+      definition: abs(close - open) / (high - low + epsilon)
+    - name: UPPER_WICK_PCT
+      definition: (high - max(open, close)) / (high - low + epsilon)
+    - name: LOWER_WICK_PCT
+      definition: (min(open, close) - low) / (high - low + epsilon)
+    - name: VOL_BUCKET_4H
+      definition: bucketization of |RET_4H| into {VOL_LOW, VOL_MID, VOL_HIGH}
+    - name: REGIME_STATE
+      definition: HMM or Markov-switching state on volatility or returns
+    - name: M5_PATH_TREND_RET
+      definition: regression slope of 5m prices within this 4h candle
+    - name: M5_MAX_DRAWDOWN_PCT
+      definition: max peak-to-trough drawdown within 5m path inside this 4h
+    - name: M5_MAX_RUNUP_PCT
+      definition: max trough-to-peak runup within 5m path inside this 4h
+    - name: M5_VOLUME_EARLY_FRAC
+      definition: fraction of volume in first 1/3 of 5m bars inside 4h
     sequence_window:
-      lengths: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-      description: >
-        دنباله‌های کندلی با طول‌های مختلف (از 2 تا 11 کندل قبل)
-        برای کشف الگوهای زمانی و روابط forward/backward استفاده می‌شوند.
-      representation: >
-        برای هر پنجره با طول L، یک ماتریس (L x D) داریم که D تعداد فیچرهای
-        هر کندل است. روی این ماتریس می‌توان هم روش‌های pattern mining و هم
+      lengths:
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+      - 11
+      description: 'دنباله‌های کندلی با طول‌های مختلف (از 2 تا 11 کندل قبل) برای کشف
+        الگوهای زمانی و روابط forward/backward استفاده می‌شوند.
+
+        '
+      representation: 'برای هر پنجره با طول L، یک ماتریس (L x D) داریم که D تعداد
+        فیچرهای هر کندل است. روی این ماتریس می‌توان هم روش‌های pattern mining و هم
         مدل‌های ML (LSTM/TCN/GBM) را اعمال کرد.
 
-# ---------------------------------------------------------------------
-# DOCS – مستندات مرجع
-# ---------------------------------------------------------------------
+        '
 DOCS:
   DISCOVERY_METHODS_4H:
-    version: "v1.0"
-    fa: "kb/DISCOVERY_METHODS_4H_v1.0_FA.md"
-    en: "kb/DISCOVERY_METHODS_4H_v1.0_EN.md"
-    scope: "BTCUSDT 4h pattern discovery pipeline"
-    status: "stable"
-
-# ---------------------------------------------------------------------
-# 4H PATTERN PIPELINE – پایپ‌لاین کشف الگوی 4ساعته
-# ---------------------------------------------------------------------
+    version: v1.0
+    fa: kb/DISCOVERY_METHODS_4H_v1.0_FA.md
+    en: kb/DISCOVERY_METHODS_4H_v1.0_EN.md
+    scope: BTCUSDT 4h pattern discovery pipeline
+    status: stable
 PATTERN_DISCOVERY_4H:
-  symbol: "BTCUSDT"
-  timeframe: "4h"
-  status: "implemented"
+  symbol: BTCUSDT
+  timeframe: 4h
+  status: implemented
   pipeline:
-    - "src/data/ohlcv_loader.py::load_ohlcv"
-    - "src/features/enrich_4h_pattern_features.py::enrich_btcusdt_4h_pattern_features"
-    - "src/patterns/eval_4h_patterns.py::evaluate_4h_patterns"
+  - src/data/ohlcv_loader.py::load_ohlcv
+  - src/features/enrich_4h_pattern_features.py::enrich_btcusdt_4h_pattern_features
+  - src/patterns/eval_4h_patterns.py::evaluate_4h_patterns
   kb_files:
-    - "kb/rules_4h_patterns.yaml"
-    - "kb/rules_4h_patterns_performance.yaml"
-    - "kb/rules_4h_patterns_labeled.yaml"
+  - kb/rules_4h_patterns.yaml
+  - kb/rules_4h_patterns_performance.yaml
+  - kb/rules_4h_patterns_labeled.yaml
   docs:
-    - "kb/DISCOVERY_METHODS_4H_v1.0_FA.md"
-    - "kb/DISCOVERY_METHODS_4H_v1.0_EN.md"
+  - kb/DISCOVERY_METHODS_4H_v1.0_FA.md
+  - kb/DISCOVERY_METHODS_4H_v1.0_EN.md
   notes:
-    - "4H directional patterns with expected_direction and direction-aware evaluation."
-    - "5m integration is planned but not yet implemented in the pattern evaluation engine."
-
-# ---------------------------------------------------------------------
-# KNOWLEDGE BASE INDEX – مسیرهای رسمی فایل‌های KB
-# ---------------------------------------------------------------------
+  - 4H directional patterns with expected_direction and direction-aware evaluation.
+  - 5m integration is planned but not yet implemented in the pattern evaluation engine.
 KNOWLEDGE_BASE_INDEX:
-  updated_at: "2025-12-05T21:15:00Z"
+  updated_at: '2025-12-05T21:15:00Z'
   patterns:
-    - "project/KNOWLEDGE_BASE/patterns/patterns.yaml"
+  - project/KNOWLEDGE_BASE/patterns/patterns.yaml
   layers: []
   system: []
-
-# ---------------------------------------------------------------------
-# 4. PATTERN_DISCOVERY – کشف الگوها و روابط بین کندل‌ها
-# ---------------------------------------------------------------------
+  canonical_patterns:
+    path: kb\rules_patterns_master.yaml
+    version: v1.0.1
+    updated_at: '2025-12-05T20:34:35.827733'
+  pattern_families:
+    path: project\KNOWLEDGE_BASE\patterns\pattern_families_level1.yaml
+    version: v1.0.0
+    updated_at: '2025-12-05T20:34:55.368218'
 pattern_discovery:
   objectives:
-    - "کشف الگوهای تکرارشونده در توالی کندل‌های 4h"
-    - "کشف الگوهای تکرارشونده در توالی کندل‌های 5m (مستقل از 4h و وابسته به آن)"
-    - "کشف روابط forward (پیش‌بینی کندل بعدی) و backward (برهان خلف و تضاد)"
-    - "کشف روابط بین خود الگوها (الگوهای متا، conflict, confirm, complement)"
-
-  window_lengths: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-
+  - کشف الگوهای تکرارشونده در توالی کندل‌های 4h
+  - کشف الگوهای تکرارشونده در توالی کندل‌های 5m (مستقل از 4h و وابسته به آن)
+  - کشف روابط forward (پیش‌بینی کندل بعدی) و backward (برهان خلف و تضاد)
+  - کشف روابط بین خود الگوها (الگوهای متا، conflict, confirm, complement)
+  window_lengths:
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
   methods:
     classical:
-      - "Markov models of order k on DIR_4H or RET_4H"
-      - "Frequent sequence/episode mining (e.g., PrefixSpan, SPADE-like algorithms)"
-      - "Association rule mining روی ویژگی‌های discretized"
-      - "Clustering روی بردار فیچر کندل‌ها (k-means, GMM, etc.)"
+    - Markov models of order k on DIR_4H or RET_4H
+    - Frequent sequence/episode mining (e.g., PrefixSpan, SPADE-like algorithms)
+    - Association rule mining روی ویژگی‌های discretized
+    - Clustering روی بردار فیچر کندل‌ها (k-means, GMM, etc.)
     ml_based:
-      - "Gradient Boosting / XGBoost / LightGBM روی sliding windows"
-      - "RNN/LSTM/GRU برای مدل‌سازی توالی"
-      - "Temporal Convolutional Networks (TCN)"
-      - "Sequence-to-one models برای پیش‌بینی جهت/RET_4H"
+    - Gradient Boosting / XGBoost / LightGBM روی sliding windows
+    - RNN/LSTM/GRU برای مدل‌سازی توالی
+    - Temporal Convolutional Networks (TCN)
+    - Sequence-to-one models برای پیش‌بینی جهت/RET_4H
     statistical_validation:
-      - "استفاده از Train/Validation/Test و Walk-Forward"
-      - "کنترل Multiple Testing (White's Reality Check / SPA-type tests)"
-      - "Surrogate data / permutation tests برای تشخیص الگوهای تصادفی"
-
+    - استفاده از Train/Validation/Test و Walk-Forward
+    - کنترل Multiple Testing (White's Reality Check / SPA-type tests)
+    - Surrogate data / permutation tests برای تشخیص الگوهای تصادفی
   pattern_types:
     forward_patterns:
-      description: "الگوهایی که از توالی کندل‌ها به سمت کندل بعدی می‌روند."
+      description: الگوهایی که از توالی کندل‌ها به سمت کندل بعدی می‌روند.
       output_target:
-        - "DIR_4H_NEXT"
-        - "RET_4H_NEXT_BINNED"
-        - "VOL_BUCKET_4H_NEXT"
+      - DIR_4H_NEXT
+      - RET_4H_NEXT_BINNED
+      - VOL_BUCKET_4H_NEXT
     backward_patterns:
-      description: >
-        الگوهایی که از مشاهده رفتار آینده به نتیجه‌گیری در مورد
-        ساختار گذشته و صحت/عدم صحت بعضی الگوهای forward کمک می‌کنند
-        (برهان خلف، تضاد، روابط برگشتی).
-    meta_patterns:
-      description: >
-        الگوهایی که روی خود الگوها تعریف می‌شوند؛ مثلاً ترکیب دو
-        pattern با هم، الگوهای conflict/confirm، یا الگوهای Cross-Market.
+      description: 'الگوهایی که از مشاهده رفتار آینده به نتیجه‌گیری در مورد ساختار
+        گذشته و صحت/عدم صحت بعضی الگوهای forward کمک می‌کنند (برهان خلف، تضاد، روابط
+        برگشتی).
 
+        '
+    meta_patterns:
+      description: 'الگوهایی که روی خود الگوها تعریف می‌شوند؛ مثلاً ترکیب دو pattern
+        با هم، الگوهای conflict/confirm، یا الگوهای Cross-Market.
+
+        '
   micro_5m_patterns:
     independent:
-      description: >
-        کشف الگوهای توالی کندل‌های 5m به‌طور مستقل (بدون شرط روی 4h)،
-        برای درک ساختار ریز حرکت قیمت و رفتار کوتاه‌مدت بازار در مقیاس بسیار
-        محلی.
-    conditional_on_4h:
-      description: >
-        کشف الگوهای 5m مشروط به نوع و ویژگی‌های کندل 4h والد، برای
-        ساختن نگاشت‌های micro→macro و کمک به پیش‌بینی بهتر رفتار کندل 4h بعدی.
+      description: 'کشف الگوهای توالی کندل‌های 5m به‌طور مستقل (بدون شرط روی 4h)،
+        برای درک ساختار ریز حرکت قیمت و رفتار کوتاه‌مدت بازار در مقیاس بسیار محلی.
 
-# ---------------------------------------------------------------------
-# 5. PATTERN_SCORING – امتیازدهی و دسته‌بندی قدرت الگوها
-# ---------------------------------------------------------------------
+        '
+    conditional_on_4h:
+      description: 'کشف الگوهای 5m مشروط به نوع و ویژگی‌های کندل 4h والد، برای ساختن
+        نگاشت‌های micro→macro و کمک به پیش‌بینی بهتر رفتار کندل 4h بعدی.
+
+        '
 pattern_scoring:
   accuracy_buckets:
-    very_strong:  # خیلی قوی
-      acc_min: 0.80
-      acc_max: 1.00
-    strong:       # قوی
-      acc_min: 0.60
-      acc_max: 0.80
-    medium:       # متوسط
+    very_strong:
+      acc_min: 0.8
+      acc_max: 1.0
+    strong:
+      acc_min: 0.6
+      acc_max: 0.8
+    medium:
       acc_min: 0.55
-      acc_max: 0.60
-    weak:         # ضعیف
+      acc_max: 0.6
+    weak:
       acc_min: 0.52
       acc_max: 0.55
-    very_weak:    # خیلی ضعیف
-      acc_min: 0.00
+    very_weak:
+      acc_min: 0.0
       acc_max: 0.52
-
   metrics:
-    description: >
-      صرفاً Accuracy کافی نیست. باید معیارهای دیگری نیز برای
-      امتیازدهی الگوها استفاده شوند تا الگوهای تصادفی حذف شوند.
+    description: 'صرفاً Accuracy کافی نیست. باید معیارهای دیگری نیز برای امتیازدهی
+      الگوها استفاده شوند تا الگوهای تصادفی حذف شوند.
+
+      '
     list:
-      - "Accuracy"
-      - "Baseline lift (مقایسه با توزیع بدون شرط)"
-      - "Expected R-multiple with simple TP/SL"
-      - "Sharpe-like metrics روی R"
-      - "Stability across time windows (performance_over_time)"
-      - "Sample size (حجم نمونه)"
-
+    - Accuracy
+    - Baseline lift (مقایسه با توزیع بدون شرط)
+    - Expected R-multiple with simple TP/SL
+    - Sharpe-like metrics روی R
+    - Stability across time windows (performance_over_time)
+    - Sample size (حجم نمونه)
   classification_rules:
-    # توضیح غیررسمی:
-    # یک الگوی 80٪ با 5 نمونه، ضعیف‌تر از یک الگوی 65٪ با 200 نمونه است.
     take_sample_size_into_account: true
-    stability_importance: "high"
+    stability_importance: high
     drift_sensitive: true
-
-# ---------------------------------------------------------------------
-# 6. PATTERN_LIFECYCLE – چرخه عمر الگوها و قوانین
-# ---------------------------------------------------------------------
 pattern_lifecycle:
   statuses:
-    - "exploratory"  # تازه کشف شده، فقط روی train خوب بوده
-    - "candidate"    # روی train+validation خوب، در انتظار test
-    - "active"       # روی چند پنجره زمانی + test نزدیک به حال خوب
-    - "watchlist"    # قبلاً خوب، اخیراً ضعیف
-    - "deprecated"   # به‌طور پایدار بی‌اثر یا مضر
-
+  - exploratory
+  - candidate
+  - active
+  - watchlist
+  - deprecated
   update_cycle:
-    frequency: "monthly_or_every_N_4h_bars"
+    frequency: monthly_or_every_N_4h_bars
     steps:
-      - "بارگذاری داده‌های جدید (4h و 5m) تا زمان فعلی"
-      - "اجرای backtest روی بازه‌های اخیر برای تمام الگوها/قوانین"
-      - "به‌روزرسانی metrics و performance_over_time"
-      - "بازطبقه‌بندی وضعیت الگوها (status) بر اساس قوانین scoring"
-      - "ثبت تغییرات در status_history در بانک دانش"
-
+    - بارگذاری داده‌های جدید (4h و 5m) تا زمان فعلی
+    - اجرای backtest روی بازه‌های اخیر برای تمام الگوها/قوانین
+    - به‌روزرسانی metrics و performance_over_time
+    - بازطبقه‌بندی وضعیت الگوها (status) بر اساس قوانین scoring
+    - ثبت تغییرات در status_history در بانک دانش
   status_transition_rules:
     examples:
-      - from: "exploratory"
-        to: "candidate"
-        condition: "عملکرد خوب روی train + validation و عدم overfitting واضح"
-      - from: "candidate"
-        to: "active"
-        condition: "عملکرد مثبت در test نزدیک به حال + پایداری در چند پنجره"
-      - from: "active"
-        to: "watchlist"
-        condition: "کاهش معنی‌دار عملکرد در دو پنجره‌ی اخیر"
-      - from: "watchlist"
-        to: "deprecated"
-        condition: "عدم بهبود و احتمال Drift یا مرگ ساختاری pattern"
-
+    - from: exploratory
+      to: candidate
+      condition: عملکرد خوب روی train + validation و عدم overfitting واضح
+    - from: candidate
+      to: active
+      condition: عملکرد مثبت در test نزدیک به حال + پایداری در چند پنجره
+    - from: active
+      to: watchlist
+      condition: کاهش معنی‌دار عملکرد در دو پنجره‌ی اخیر
+    - from: watchlist
+      to: deprecated
+      condition: عدم بهبود و احتمال Drift یا مرگ ساختاری pattern
   focus_on_medium_and_weak:
-    description: >
-      الگوهایی که در بازه‌های medium و weak (بر اساس accuracy و سایر
-      معیارها) قرار می‌گیرند، به‌طور منظم با استفاده از متدهای قوی‌تر
-      و جدیدتر دوباره مورد کاوش قرار می‌گیرند تا:
-      1) در صورت کشف ساختار عمیق‌تر، به سطح بالاتر ارتقا یابند،
-      2) در صورت اثبات تصادفی بودن، به سمت very_weak/deprecated سوق داده شوند.
-      علاوه بر این، روابط بین این الگوها (meta_relations) نیز برای کشف
-      ساختارهای پنهان‌تر بررسی می‌شود.
+    description: 'الگوهایی که در بازه‌های medium و weak (بر اساس accuracy و سایر معیارها)
+      قرار می‌گیرند، به‌طور منظم با استفاده از متدهای قوی‌تر و جدیدتر دوباره مورد
+      کاوش قرار می‌گیرند تا: 1) در صورت کشف ساختار عمیق‌تر، به سطح بالاتر ارتقا یابند،
+      2) در صورت اثبات تصادفی بودن، به سمت very_weak/deprecated سوق داده شوند. علاوه
+      بر این، روابط بین این الگوها (meta_relations) نیز برای کشف ساختارهای پنهان‌تر
+      بررسی می‌شود.
 
-# ---------------------------------------------------------------------
-# 7. MULTI_MARKET_SCOPE – بازارهای همسو و Cross-Market
-# ---------------------------------------------------------------------
+      '
 multi_market_scope:
   markets:
     primary:
-      - "BTCUSDT_PERP"
+    - BTCUSDT_PERP
     secondary_candidates:
-      - "BTCUSDT_SPOT"
-      - "ETHUSDT_PERP"
-      - "TOTAL_CRYPTO_MCAP"
-      - "DXY"
-      - "SPX"
-      - "GOLD"
-    note: >
-      بازارهای ثانویه برای کشف روابط lead-lag و Cross-Market
-      استفاده می‌شوند تا مشخص شود آیا معامله روی آن‌ها (با سیگنال‌های
-      ناشی از BTC) سودآورتر و پیش‌بینی‌پذیرتر است یا خیر.
+    - BTCUSDT_SPOT
+    - ETHUSDT_PERP
+    - TOTAL_CRYPTO_MCAP
+    - DXY
+    - SPX
+    - GOLD
+    note: 'بازارهای ثانویه برای کشف روابط lead-lag و Cross-Market استفاده می‌شوند
+      تا مشخص شود آیا معامله روی آن‌ها (با سیگنال‌های ناشی از BTC) سودآورتر و پیش‌بینی‌پذیرتر
+      است یا خیر.
 
+      '
   cross_market_relations:
     objectives:
-      - "کشف همبستگی‌های متغیر در زمان بین BTC و دیگر بازارها"
-      - "کشف روابط lead-lag (کدام بازار جلوتر حرکت می‌کند؟)"
-      - "کشف الگوهای مشترک (Cross-Market Patterns) بین الگوهای BTC و دیگر بازارها"
+    - کشف همبستگی‌های متغیر در زمان بین BTC و دیگر بازارها
+    - کشف روابط lead-lag (کدام بازار جلوتر حرکت می‌کند؟)
+    - کشف الگوهای مشترک (Cross-Market Patterns) بین الگوهای BTC و دیگر بازارها
     methods:
-      - "Rolling correlation روی بازده‌های 4h"
-      - "Granger causality tests"
-      - "Cointegration analysis (در صورت مناسب بودن)"
-      - "Dynamic Conditional Correlation (DCC-GARCH) برای vol-co-movements"
-
-# ---------------------------------------------------------------------
-# 8. KNOWLEDGE_BASE – طرح کلی ساختار بانک دانش YAML چندبازاره
-#    (جزئیات Schema در فایل KB-SCHEMA جداگانه خواهد آمد)
-# ---------------------------------------------------------------------
+    - Rolling correlation روی بازده‌های 4h
+    - Granger causality tests
+    - Cointegration analysis (در صورت مناسب بودن)
+    - Dynamic Conditional Correlation (DCC-GARCH) برای vol-co-movements
 knowledge_base:
-  concept: >
-    بانک دانش یک فایل/مجموعه‌فایل YAML است که در آن اطلاعات
-    مربوط به datasets، فیچرها، خوشه‌ها، الگوها، قوانین معاملاتی،
-    روابط بین بازارها، عملکرد در طول زمان و وضعیت الگوها به‌صورت
-    ساختاریافته ذخیره می‌شود. این بانک دانش منبع حقیقت (source of truth)
-    برای موتورهای تحلیل و بک‌تست است، نه متن چت.
+  concept: 'بانک دانش یک فایل/مجموعه‌فایل YAML است که در آن اطلاعات مربوط به datasets،
+    فیچرها، خوشه‌ها، الگوها، قوانین معاملاتی، روابط بین بازارها، عملکرد در طول زمان
+    و وضعیت الگوها به‌صورت ساختاریافته ذخیره می‌شود. این بانک دانش منبع حقیقت (source
+    of truth) برای موتورهای تحلیل و بک‌تست است، نه متن چت.
 
+    '
   main_sections:
-    - "meta"
-    - "datasets"
-    - "features"
-    - "clusters"
-    - "patterns"
-    - "trading_rules"
-    - "rule_relations"        # روابط بین قوانین/الگوها (conflict, confirm, complement)
-    - "cross_market_patterns"
-    - "market_relations"
-    - "backtests"
-    - "performance_over_time"
-    - "status_history"
-
+  - meta
+  - datasets
+  - features
+  - clusters
+  - patterns
+  - trading_rules
+  - rule_relations
+  - cross_market_patterns
+  - market_relations
+  - backtests
+  - performance_over_time
+  - status_history
   file_strategy:
     single_file_initial: true
-    path_initial: "kb/btcusdt_4h_knowledge.yaml"
-    description: >
-      در نسخه‌های اولیه، بانک دانش BTC در یک فایل YAML واحد
-      نگه‌داری می‌شود. در نسخه‌های بعدی ممکن است برای مدیریت
-      پیچیدگی، به چند فایل مجزا (patterns, trading_rules, backtests, ...)
-      شکسته شود.
+    path_initial: kb/btcusdt_4h_knowledge.yaml
+    description: 'در نسخه‌های اولیه، بانک دانش BTC در یک فایل YAML واحد نگه‌داری می‌شود.
+      در نسخه‌های بعدی ممکن است برای مدیریت پیچیدگی، به چند فایل مجزا (patterns, trading_rules,
+      backtests, ...) شکسته شود.
 
+      '
   enforcement:
     single_file_default: true
     id_uniqueness: true
     cross_reference_validation: true
     notes:
-      - "ولیدیشن ابزار rules_kb شناسه‌های تکراری و ارجاع‌های نامعتبر را خطا می‌دهد؛ هر فایل قبل از مصرف باید پاس شود."
-      - "اگر بعدها به چند فایل شکسته شود، هر بخش باید همچنان با KB_SCHEMA هم‌خوان و cross-reference معتبر داشته باشد."
-
-# ---------------------------------------------------------------------
-# 9. PIPELINES – پایپلاین‌های اصلی پروژه
-# ---------------------------------------------------------------------
+    - ولیدیشن ابزار rules_kb شناسه‌های تکراری و ارجاع‌های نامعتبر را خطا می‌دهد؛ هر
+      فایل قبل از مصرف باید پاس شود.
+    - اگر بعدها به چند فایل شکسته شود، هر بخش باید همچنان با KB_SCHEMA هم‌خوان و cross-reference
+      معتبر داشته باشد.
 pipelines:
-  - id: "data_prep_4h5m"
-    name: "آماده‌سازی داده 4h و 5m برای BTCUSDT"
-    description: >
-      لود داده خام از لودرهای استاندارد، ساخت فیچرهای 4h و
-      aggregate کردن اطلاعات 5m داخل هر کندل 4h، ذخیره در
-      قالب parquet/csv استاندارد.
-    inputs:
-      - "load_ohlcv(BTCUSDT_PERP, 4h, ...)"
-      - "load_ohlcv(BTCUSDT_PERP, 5m, ...)"
-    outputs:
-      - "data/btcusdt_4h_features.parquet"
-      - "data/btcusdt_5m_raw.parquet"
+- id: data_prep_4h5m
+  name: آماده‌سازی داده 4h و 5m برای BTCUSDT
+  description: 'لود داده خام از لودرهای استاندارد، ساخت فیچرهای 4h و aggregate کردن
+    اطلاعات 5m داخل هر کندل 4h، ذخیره در قالب parquet/csv استاندارد.
 
-  - id: "discover_patterns_btc"
-    name: "کشف الگوهای کندلی BTC"
-    description: >
-      استفاده از data_prep برای ساخت نمونه‌های window-based
-      (طول 2 تا 11) و اعمال الگوریتم‌های pattern mining و ML
-      برای کشف الگوهای forward/backward و meta-patternها.
-    inputs:
-      - "data/btcusdt_4h_features.parquet"
-      - "data/btcusdt_5m_raw.parquet"
-    outputs:
-      - "kb/btcusdt_4h_knowledge.yaml (sections: patterns, clusters)"
+    '
+  inputs:
+  - load_ohlcv(BTCUSDT_PERP, 4h, ...)
+  - load_ohlcv(BTCUSDT_PERP, 5m, ...)
+  outputs:
+  - data/btcusdt_4h_features.parquet
+  - data/btcusdt_5m_raw.parquet
+- id: discover_patterns_btc
+  name: کشف الگوهای کندلی BTC
+  description: 'استفاده از data_prep برای ساخت نمونه‌های window-based (طول 2 تا 11)
+    و اعمال الگوریتم‌های pattern mining و ML برای کشف الگوهای forward/backward و meta-patternها.
 
-  - id: "evaluate_trading_rules_btc"
-    name: "بک‌تست و ارزیابی قوانین معاملاتی BTC"
-    description: >
-      استفاده از الگوهای کشف‌شده برای ساخت یا اعمال قوانین معاملاتی،
-      اجرای بک‌تست روی بخش Test و پنجره‌های مختلف زمانی، محاسبه
-      performance_over_time و به‌روزرسانی status الگوها.
-    inputs:
-      - "kb/btcusdt_4h_knowledge.yaml"
-      - "data/btcusdt_4h_features.parquet"
-    outputs:
-      - "kb/btcusdt_4h_knowledge.yaml (sections: backtests, performance_over_time, status_history)"
+    '
+  inputs:
+  - data/btcusdt_4h_features.parquet
+  - data/btcusdt_5m_raw.parquet
+  outputs:
+  - 'kb/btcusdt_4h_knowledge.yaml (sections: patterns, clusters)'
+- id: evaluate_trading_rules_btc
+  name: بک‌تست و ارزیابی قوانین معاملاتی BTC
+  description: 'استفاده از الگوهای کشف‌شده برای ساخت یا اعمال قوانین معاملاتی، اجرای
+    بک‌تست روی بخش Test و پنجره‌های مختلف زمانی، محاسبه performance_over_time و به‌روزرسانی
+    status الگوها.
 
-  - id: "cross_market_analysis"
-    name: "تحلیل Cross-Market و Lead-Lag"
-    description: >
-      لود داده‌ی بازارهای ثانویه، محاسبه همبستگی و lead-lag، ثبت
-      market_relations و ساخت Cross-Market Patterns اولیه.
-    inputs:
-      - "data/multi_market_4h.parquet"
-      - "kb/btcusdt_4h_knowledge.yaml"
-    outputs:
-      - "kb/btcusdt_4h_knowledge.yaml (sections: market_relations, cross_market_patterns)"
+    '
+  inputs:
+  - kb/btcusdt_4h_knowledge.yaml
+  - data/btcusdt_4h_features.parquet
+  outputs:
+  - 'kb/btcusdt_4h_knowledge.yaml (sections: backtests, performance_over_time, status_history)'
+- id: cross_market_analysis
+  name: تحلیل Cross-Market و Lead-Lag
+  description: 'لود داده‌ی بازارهای ثانویه، محاسبه همبستگی و lead-lag، ثبت market_relations
+    و ساخت Cross-Market Patterns اولیه.
 
-  - id: "continuous_rebacktest_and_refresh"
-    name: "بروزرسانی پیوسته، بک‌تست مجدد و کشف الگوهای تازه"
-    description: >
-      اجرای دوره‌ای (مثلاً ماهانه یا بر اساس N کندل 4h) برای:
-      1) به‌روزرسانی دیتاست‌های 4h/5m و پاک‌سازی کندل‌های ناقص؛
-      2) کشف الگوها/روابط جدید در هر دو تایم‌فریم و به‌روزرسانی بخش patterns؛
-      3) بک‌تست مجدد قوانین معاملاتی و به‌روزرسانی backtests، performance_over_time، status_history؛
-      4) پایش drift و به‌روزرسانی وضعیت الگوها (status) و برچسب‌های قدرت/دقت؛
-      5) در فاز بعد، گسترش به روابط Cross-Market و Lead-Lag برای بازارهای همسو/مؤثر بر BTC.
-    inputs:
-      - "kb/btcusdt_4h_knowledge.yaml"
-      - "data/btcusdt_4h_features.parquet"
-      - "data/btcusdt_5m_raw.parquet"
-      - "data/multi_market_4h.parquet"
-    outputs:
-      - "kb/btcusdt_4h_knowledge.yaml (sections: patterns, trading_rules, backtests, performance_over_time, status_history, cross_market_patterns, market_relations)"
+    '
+  inputs:
+  - data/multi_market_4h.parquet
+  - kb/btcusdt_4h_knowledge.yaml
+  outputs:
+  - 'kb/btcusdt_4h_knowledge.yaml (sections: market_relations, cross_market_patterns)'
+- id: continuous_rebacktest_and_refresh
+  name: بروزرسانی پیوسته، بک‌تست مجدد و کشف الگوهای تازه
+  description: 'اجرای دوره‌ای (مثلاً ماهانه یا بر اساس N کندل 4h) برای: 1) به‌روزرسانی
+    دیتاست‌های 4h/5m و پاک‌سازی کندل‌های ناقص؛ 2) کشف الگوها/روابط جدید در هر دو تایم‌فریم
+    و به‌روزرسانی بخش patterns؛ 3) بک‌تست مجدد قوانین معاملاتی و به‌روزرسانی backtests،
+    performance_over_time، status_history؛ 4) پایش drift و به‌روزرسانی وضعیت الگوها
+    (status) و برچسب‌های قدرت/دقت؛ 5) در فاز بعد، گسترش به روابط Cross-Market و Lead-Lag
+    برای بازارهای همسو/مؤثر بر BTC.
 
-# ---------------------------------------------------------------------
-# 10. IMPLEMENTATION_NOTES – یادداشت‌های اجرایی و اصول ثابت
-# ---------------------------------------------------------------------
+    '
+  inputs:
+  - kb/btcusdt_4h_knowledge.yaml
+  - data/btcusdt_4h_features.parquet
+  - data/btcusdt_5m_raw.parquet
+  - data/multi_market_4h.parquet
+  outputs:
+  - 'kb/btcusdt_4h_knowledge.yaml (sections: patterns, trading_rules, backtests, performance_over_time,
+    status_history, cross_market_patterns, market_relations)'
 implementation_notes:
   principles:
-    - "عدم تکیه بر حافظه‌ی چت؛ همه دانش مهم باید در YAML/فایل ذخیره شود."
-    - "استفاده از روش‌های علمی معتبر، نه صرفاً شهود یا تست‌های محدود."
-    - "قبل از به‌کارگیری متد جدید کشف الگو یا مدل‌سازی، یک مرحله تحقیق (literature review / web research) روی منابع به‌روز انجام می‌شود."
-    - "مدیریت Drift بازار با به‌روزرسانی مستمر الگوها و قوانین."
-    - "ارزیابی الگوها بر اساس عملکرد واقعی (R-multiple، EV، stability) نه فقط Accuracy."
-    - "امکان این‌که خروجی نهایی سیستم پیشنهاد معامله روی ابزار دیگر باشد (نه لزوماً خود BTC)."
-    - "هیچ کندل بی‌ارزش فرض نمی‌شود؛ هر کندل حاوی اطلاعات است و تفاوت در وزن و نقش آن در الگوهاست، نه در ارزش بنیادی."
-
+  - عدم تکیه بر حافظه‌ی چت؛ همه دانش مهم باید در YAML/فایل ذخیره شود.
+  - استفاده از روش‌های علمی معتبر، نه صرفاً شهود یا تست‌های محدود.
+  - قبل از به‌کارگیری متد جدید کشف الگو یا مدل‌سازی، یک مرحله تحقیق (literature review
+    / web research) روی منابع به‌روز انجام می‌شود.
+  - مدیریت Drift بازار با به‌روزرسانی مستمر الگوها و قوانین.
+  - ارزیابی الگوها بر اساس عملکرد واقعی (R-multiple، EV، stability) نه فقط Accuracy.
+  - امکان این‌که خروجی نهایی سیستم پیشنهاد معامله روی ابزار دیگر باشد (نه لزوماً خود
+    BTC).
+  - هیچ کندل بی‌ارزش فرض نمی‌شود؛ هر کندل حاوی اطلاعات است و تفاوت در وزن و نقش آن
+    در الگوهاست، نه در ارزش بنیادی.
   tooling:
     llm_role:
-      description: >
-        نقش LLM (مثل ChatGPT) طراحی معماری، تحلیل نتایج،
-        نقد و اصلاح، تولید Spec و YAML و کمک در تولید/بازبینی کد است.
-        LLM نباید تنها منبع دانش پروژه باشد؛ بانک دانش YAML و
-        کد نسخه‌دار باید منبع اصلی باشند.
-    codex_role:
-      description: >
-        از VS Code + Codex (یا ابزار مشابه) برای تولید سریع کدهای
-        Boilerplate و کمک در پیاده‌سازی استفاده می‌شود، اما طراحی
-        معماری و ساختار کد از این سند و Specهای تولیدشده توسط LLM
-        پیروی می‌کند.
-      usage:
-        - "LLM Spec دقیق را تولید می‌کند."
-        - "انسان Spec را به Codex می‌دهد."
-        - "کد تولیدی توسط LLM + انسان review و اصلاح می‌شود."
+      description: 'نقش LLM (مثل ChatGPT) طراحی معماری، تحلیل نتایج، نقد و اصلاح،
+        تولید Spec و YAML و کمک در تولید/بازبینی کد است. LLM نباید تنها منبع دانش
+        پروژه باشد؛ بانک دانش YAML و کد نسخه‌دار باید منبع اصلی باشند.
 
-# =====================================================================
-# پایان نسخه 0.1.1 از MASTER_KNOWLEDGE.yaml
-# =====================================================================
+        '
+    codex_role:
+      description: 'از VS Code + Codex (یا ابزار مشابه) برای تولید سریع کدهای Boilerplate
+        و کمک در پیاده‌سازی استفاده می‌شود، اما طراحی معماری و ساختار کد از این سند
+        و Specهای تولیدشده توسط LLM پیروی می‌کند.
+
+        '
+      usage:
+      - LLM Spec دقیق را تولید می‌کند.
+      - انسان Spec را به Codex می‌دهد.
+      - کد تولیدی توسط LLM + انسان review و اصلاح می‌شود.
