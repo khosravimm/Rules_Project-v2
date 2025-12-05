@@ -1,5 +1,5 @@
 # Full Pattern Inventory Report – v2
-- Date: 2025-12-05T22:35:57.176200
+- Date: 2025-12-05T22:40:19.469097
 - Inputs: data/patterns_4h_raw_level1.parquet, data/patterns_5m_raw_level1.parquet
 
 ## 4h Timeframe
