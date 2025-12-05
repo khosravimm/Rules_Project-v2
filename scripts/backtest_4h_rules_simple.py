@@ -21,6 +21,7 @@ import yaml
 @dataclass
 class RuleBacktestResult:
     rule_id: str
+    test_direction: str
     n_trades: int
     n_wins: int
     n_losses: int
@@ -42,6 +43,17 @@ def parse_args() -> argparse.Namespace:
         default="candidate",
         choices=["draft", "candidate", "active", "all"],
         help="Filter rules by lifecycle status (default: candidate).",
+    )
+    parser.add_argument(
+        "--direction-mode",
+        choices=["rule", "reverse"],
+        default="rule",
+        help=(
+            "How to determine trade direction: "
+            "'rule' uses the direction stored in the rule "
+            "('long'/'short'); 'reverse' backtests the opposite side "
+            "(long->short, short->long)."
+        ),
     )
     parser.add_argument("--start-date", help="Start date YYYY-MM-DD (inclusive).")
     parser.add_argument("--end-date", help="End date YYYY-MM-DD (inclusive).")
@@ -190,6 +202,28 @@ def extract_sequence_from_pattern(pattern: Dict[str, Any]) -> List[str]:
     return out
 
 
+def resolve_test_direction(rule_direction: str, direction_mode: str) -> str:
+    """
+    Return the direction to use for simulation.
+
+    - If direction_mode == "rule": return rule_direction as-is.
+    - If direction_mode == "reverse":
+        - If rule_direction == "long":  return "short"
+        - If rule_direction == "short": return "long"
+        - Otherwise (unknown value):    return rule_direction as-is.
+    """
+    dir_norm = str(rule_direction).lower()
+    mode_norm = str(direction_mode).lower()
+    if mode_norm == "rule":
+        return dir_norm
+    if mode_norm == "reverse":
+        if dir_norm == "long":
+            return "short"
+        if dir_norm == "short":
+            return "long"
+    return dir_norm
+
+
 def generate_entry_signals(df: pd.DataFrame, sequence_dirs: List[str]) -> pd.Series:
     """Return boolean Series marking where pattern fires at bar t (entry at t+1)."""
     n = len(sequence_dirs)
@@ -222,6 +256,7 @@ def backtest_rule(
     rule: Dict[str, Any],
     pattern: Dict[str, Any],
     sequence_dirs: List[str],
+    test_direction: str,
 ) -> RuleBacktestResult:
     exit_logic = rule.get("logic", {}).get("exit", {}) or {}
     stop_loss_pct = float(exit_logic.get("stop_loss", {}).get("value", 0.02) or 0.02)
@@ -229,7 +264,21 @@ def backtest_rule(
     max_bars_hold = int(exit_logic.get("time_based", {}).get("max_bars_hold", 4) or 4)
 
     signals = generate_entry_signals(df, sequence_dirs)
-    direction = rule.get("direction", "long")
+    direction = str(test_direction or "").lower()
+    if direction not in {"long", "short"}:
+        return RuleBacktestResult(
+            rule_id=rule.get("id", "UNKNOWN"),
+            test_direction=direction,
+            n_trades=0,
+            n_wins=0,
+            n_losses=0,
+            win_rate=0.0,
+            total_R=0.0,
+            avg_R=0.0,
+            max_drawdown_R=0.0,
+            first_trade_time=None,
+            last_trade_time=None,
+        )
     timestamps = df.index.tolist()
     closes = df["close"].tolist()
     highs = df["high"].tolist()
@@ -299,6 +348,7 @@ def backtest_rule(
 
     return RuleBacktestResult(
         rule_id=rule.get("id", "UNKNOWN"),
+        test_direction=direction,
         n_trades=n_trades,
         n_wins=n_wins,
         n_losses=n_losses,
@@ -334,6 +384,7 @@ def attach_backtest_to_kb(
         "created_at": created_at,
         "params": {
             "rule_status_filter": args.rule_status,
+            "direction_mode": args.direction_mode,
             "start_date": args.start_date,
             "end_date": args.end_date,
             "max_rules": args.max_rules,
@@ -341,6 +392,7 @@ def attach_backtest_to_kb(
         "results": [
             {
                 "rule_id": r.rule_id,
+                "test_direction": r.test_direction,
                 "n_trades": r.n_trades,
                 "n_wins": r.n_wins,
                 "n_losses": r.n_losses,
@@ -402,21 +454,24 @@ def main() -> None:
             continue
 
         seq_dirs = extract_sequence_from_pattern(patt)
-        res = backtest_rule(df, rule, patt, seq_dirs)
+        rule_direction = str(rule.get("direction", "")).lower()
+        test_direction = resolve_test_direction(rule_direction, args.direction_mode)
+        res = backtest_rule(df, rule, patt, seq_dirs, test_direction)
         results.append(res)
         if args.verbose:
             print(
-                f"[INFO] Rule {res.rule_id}: trades={res.n_trades}, win%={res.win_rate:.2f}, "
+                f"[INFO] Rule {res.rule_id}: direction={res.test_direction}, trades={res.n_trades}, win%={res.win_rate:.2f}, "
                 f"total_R={res.total_R:.2f}"
             )
 
     if results:
-        headers = ["Rule ID", "Trades", "Win%", "Total R", "Avg R", "MaxDD R"]
+        headers = ["Rule ID", "Dir", "Trades", "Win%", "Total R", "Avg R", "MaxDD R"]
         rows = []
         for r in results:
             rows.append(
                 [
                     r.rule_id,
+                    r.test_direction,
                     str(r.n_trades),
                     f"{r.win_rate:.2f}",
                     f"{r.total_R:+.2f}",
@@ -437,6 +492,7 @@ def main() -> None:
         for row in rows:
             print(fmt_row(row))
         print(f"[INFO] Tested {len(results)} rule(s).")
+        print(f"[INFO] direction-mode = {args.direction_mode}")
     else:
         print("[INFO] No results to show.")
         raise SystemExit(0)
