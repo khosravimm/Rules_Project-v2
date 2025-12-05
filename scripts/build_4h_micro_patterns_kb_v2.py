@@ -9,6 +9,7 @@ Build KB entries for 4h-from-5m micro-structure patterns (v2).
 from __future__ import annotations
 
 import argparse
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,11 @@ from typing import Any, Dict, List
 
 import pandas as pd
 import yaml
+
+# Ensure src/ is importable
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
 
 from src.rules_kb.upgrade import upgrade_kb_structure
 
