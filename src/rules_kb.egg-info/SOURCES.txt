@@ -1,6 +1,5 @@
 pyproject.toml
 src/data/__init__.py
-src/data/btc_futures_loader.py
 src/data/ohlcv_loader.py
 src/rules_kb/__init__.py
 src/rules_kb/cli.py
