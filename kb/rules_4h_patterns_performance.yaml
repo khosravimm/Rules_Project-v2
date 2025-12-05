@@ -1,7 +1,7 @@
 meta:
   source_patterns_file: kb/rules_4h_patterns.yaml
   features_file: data/btcusdt_4h_features.parquet
-  generated_at: '2025-12-05T16:41:48.571205'
+  generated_at: '2025-12-05T17:02:02.394234'
   min_support: 20
 patterns:
 - id: P4H_DIRSEQ2_UPUP_CONT_01
@@ -26,7 +26,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: 0.5124457638730304
+  baseline_win_rate: 0.48755423612696963
   status_hint: too_rare
 - id: P4H_DIRSEQ2_UPDN_REV_01
   timeframe: 4h
@@ -62,7 +62,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: 0.5124457638730304
+  baseline_win_rate: 0.48755423612696963
   status_hint: too_rare
 - id: P4H_DIRSEQ3_UPDNUP_TRAP_01
   timeframe: 4h
@@ -86,7 +86,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: 0.5124457638730304
+  baseline_win_rate: 0.48755423612696963
   status_hint: missing_feature
 - id: P4H_DIRSEQ4_DNDNDNUP_EXH_01
   timeframe: 4h
@@ -134,7 +134,7 @@ patterns:
   n_eff: 2
   win_rate: 0.5
   avg_ret: 0.0009906043704234805
-  baseline_win_rate: 0.5124457638730304
+  baseline_win_rate: 0.48755423612696963
   status_hint: too_rare
 - id: P4H_DIRSEQ5_HIGHVOL_REV_01
   timeframe: 4h
@@ -180,7 +180,7 @@ patterns:
   n_down: 24
   n_flat: 0
   n_eff: 64
-  win_rate: 0.625
+  win_rate: 0.375
   avg_ret: 0.0034533389895722143
-  baseline_win_rate: 0.5124457638730304
-  status_hint: strong
+  baseline_win_rate: 0.48755423612696963
+  status_hint: weak

@@ -68,6 +68,7 @@ patterns:
       - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,UP" }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["direction_sequence", "trend_continuation", "low_vol"]
@@ -85,6 +86,7 @@ patterns:
       - { feature: "DIR_SEQ_4H", operator: "==", value: "DOWN,DOWN" }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "DOWN"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["direction_sequence", "trend_continuation", "low_vol"]
@@ -103,6 +105,7 @@ patterns:
       - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
       - { feature: "UPPER_WICK_PCT_LAST", operator: ">", value: 0.25 }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["direction_sequence", "reversal", "exhaustion", "wick"]
@@ -125,6 +128,7 @@ patterns:
       - { feature: "BODY_PCT_MEAN_LAST3", operator: ">", value: 0.30 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_MID", "VOL_HIGH"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["momentum", "direction_sequence", "bullish"]
@@ -143,6 +147,7 @@ patterns:
       - { feature: "BODY_PCT_MEAN_LAST3", operator: ">", value: 0.30 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "==", value: "VOL_HIGH" }
     target: "DIR_4H_NEXT"
+    expected_direction: "DOWN"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["momentum", "direction_sequence", "bearish"]
@@ -161,6 +166,7 @@ patterns:
       - { feature: "UPPER_WICK_PCT_LAST", operator: ">", value: 0.30 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_MID", "VOL_HIGH"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["trap", "reversal", "direction_sequence"]
@@ -184,6 +190,7 @@ patterns:
       - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
       - { feature: "CLOSE_POSITION_LAST", operator: "<", value: 0.25 }  # بسته شدن نزدیک کف
     target: "DIR_4H_NEXT"
+    expected_direction: "DOWN"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["exhaustion", "reversal", "direction_sequence"]
@@ -202,6 +209,7 @@ patterns:
       - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
       - { feature: "CLOSE_POSITION_LAST", operator: ">", value: 0.75 }  # بسته شدن نزدیک سقف
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["exhaustion", "reversal", "direction_sequence"]
@@ -220,6 +228,7 @@ patterns:
       - { feature: "DIR_SEQ_4H", operator: "in", value: ["UP,DOWN,UP,DOWN", "DOWN,UP,DOWN,UP"] }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "NONE"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["choppy", "range", "filter_only"]
@@ -245,6 +254,7 @@ patterns:
       - { feature: "RET_4H_LAST", operator: "<", value: 0.0 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["trend", "pullback", "continuation"]
@@ -265,6 +275,7 @@ patterns:
       - { feature: "RET_4H_LAST", operator: ">", value: 0.0 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
     target: "DIR_4H_NEXT"
+    expected_direction: "DOWN"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["trend", "pullback", "continuation"]
@@ -286,6 +297,7 @@ patterns:
       - { feature: "UPPER_WICK_PCT_MEAN_LAST5", operator: ">", value: 0.20 }
       - { feature: "LOWER_WICK_PCT_MEAN_LAST5", operator: ">", value: 0.20 }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["high_vol", "reversal_cluster", "exhaustion"]
@@ -308,6 +320,7 @@ patterns:
       - { feature: "DIR_SEQ_4H_CONF_SCORE", operator: "<", value: 0.55 }
       - { feature: "VOL_BUCKET_4H_LAST", operator: "==", value: "VOL_LOW" }
     target: "DIR_4H_NEXT"
+    expected_direction: "NONE"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["filter_only", "low_confidence", "direction_sequence"]
@@ -326,6 +339,7 @@ patterns:
       - { feature: "UP_COUNT_LAST5", operator: ">=", value: 4 }
       - { feature: "RET_SUM_LAST5", operator: ">", value: 0.05 }
     target: "DIR_4H_NEXT"
+    expected_direction: "UP"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["meta", "regime", "trend_up"]
@@ -343,6 +357,7 @@ patterns:
       - { feature: "DOWN_COUNT_LAST5", operator: ">=", value: 4 }
       - { feature: "RET_SUM_LAST5", operator: "<", value: -0.05 }
     target: "DIR_4H_NEXT"
+    expected_direction: "DOWN"
     dataset_used: "btcusdt_4h_core_v1"
     status: "exploratory"
     tags: ["meta", "regime", "trend_down"]

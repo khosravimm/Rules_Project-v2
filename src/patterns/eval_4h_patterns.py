@@ -88,12 +88,17 @@ def evaluate_4h_patterns(
         pattern_id = pattern.get("id", "")
         target_col = pattern.get("target", default_target)
         conditions = pattern.get("conditions", [])
+        expected_direction = pattern.get("expected_direction", "UP")
 
         y_all = features_df[target_col] if target_col in features_df else pd.Series([], dtype=float)
-        n_up_all = int((y_all > 0).sum())
-        n_down_all = int((y_all < 0).sum())
-        n_eff_all = n_up_all + n_down_all
-        baseline_win_rate = n_up_all / n_eff_all if n_eff_all > 0 else None
+        if expected_direction == "DOWN":
+            pos_all = int((y_all < 0).sum())
+            neg_all = int((y_all > 0).sum())
+        else:
+            pos_all = int((y_all > 0).sum())
+            neg_all = int((y_all < 0).sum())
+        eff_all = pos_all + neg_all
+        baseline_win_rate = pos_all / eff_all if eff_all > 0 else None
 
         try:
             mask = _apply_conditions(features_df, conditions, pattern_id=pattern_id)
@@ -104,8 +109,15 @@ def evaluate_4h_patterns(
             n_up = int((y > 0).sum())
             n_down = int((y < 0).sum())
             n_flat = int((y == 0).sum())
-            n_pos = n_up
-            n_neg = n_down
+            if expected_direction == "DOWN":
+                n_pos = n_down
+                n_neg = n_up
+            elif expected_direction == "UP":
+                n_pos = n_up
+                n_neg = n_down
+            else:
+                n_pos = n_up
+                n_neg = n_down
             n_eff = n_pos + n_neg
 
             win_rate = n_pos / n_eff if n_eff > 0 else None
