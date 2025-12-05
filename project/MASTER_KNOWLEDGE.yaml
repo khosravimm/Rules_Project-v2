@@ -141,8 +141,19 @@ data_design:
     weighting:
       use_time_weighting: true
       description: >
-        در محاسبه‌ی آمار الگوها و آموزش مدل‌ها، داده‌های نزدیک‌تر به زمان
-        فعلی وزن بیشتری می‌گیرند تا سیستم به رفتار جدید حساس‌تر شود.
+      در محاسبه‌ی آمار الگوها و آموزش مدل‌ها، داده‌های نزدیک‌تر به زمان
+      فعلی وزن بیشتری می‌گیرند تا سیستم به رفتار جدید حساس‌تر شود.
+
+# ---------------------------------------------------------------------
+# DATA_LOADER – لودر رسمی OHLCV
+# ---------------------------------------------------------------------
+DATA_LOADER:
+  canonical_loader: "src/data/ohlcv_loader.py::load_ohlcv"
+  btcusdt_market_id: "BTCUSDT_PERP"
+  notes:
+    - "The old src/data/btc_futures_loader.py module has been removed."
+    - "All pipelines must use load_ohlcv(market='BTCUSDT_PERP', ...) for BTCUSDT data."
+    - "The generic loader is designed to support additional markets (ETH, GOLD, indices, etc.) via MARKET_MAP."
 
 # ---------------------------------------------------------------------
 # 3. FEATURE_MODEL – مدل فیچرها و نمایش کندل به‌عنوان شیء

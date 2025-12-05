@@ -10,6 +10,10 @@
 - نمونه دانش: `kb/btcusdt_4h_knowledge.yaml`
 - خلاصه انگلیسی: `SPEC.md`
 
+### لودر داده‌ها
+- لودر رسمی دریافت داده‌های OHLCV (برای BTCUSDT و سایر بازارها) تابع `load_ohlcv` در فایل `src/data/ohlcv_loader.py` است.
+- فایل قدیمی `src/data/btc_futures_loader.py` از مسیر `src/data` حذف شده و دیگر نباید در هیچ کدی استفاده شود.
+
 ### ساختار بانک دانش (طبق KB_SCHEMA)
 - بخش‌ها: meta, datasets, features, clusters, patterns, trading_rules, rule_relations, cross_market_patterns, market_relations, backtests, performance_over_time, status_history.
 - قیود: ID یکتا در هر بخش؛ ارجاع‌ها (`dataset_used`, `pattern_refs`, `rule_id`, …) باید معتبر باشد؛ ترجیح تک‌فایل `kb/*_knowledge.yaml`، اگر چندفایلی شد باید همچنان با Schema و ارجاعات معتبر بماند؛ مقدارهای مجاز: نوع الگو {forward, backward, meta}، وضعیت {exploratory, candidate, active, watchlist, deprecated}، جهت {long, short, filter_only}، نوع رابطه {conflict, confirm, complement}.
