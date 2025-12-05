@@ -11,9 +11,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 
-RAW_MAP = {
-    "4h": DATA_DIR / "btcusdt_4h_raw.parquet",
-    "5m": DATA_DIR / "btcusdt_5m_raw.parquet",
+FEATURE_MAP = {
+    "4h": DATA_DIR / "btcusdt_4h_features.parquet",
+    "5m": DATA_DIR / "btcusdt_5m_features.parquet",
 }
 
 PATTERN_OUT = {
@@ -132,6 +132,7 @@ def mine_classic_patterns_for_timeframe(
     df: pd.DataFrame,
     timeframe: str,
     window_sizes: Sequence[int],
+    pattern_types: Optional[Sequence[str]] = None,
     min_support: int = 25,
 ) -> Tuple[pd.DataFrame, Dict[int, Dict[str, List[int]]], Dict[int, np.ndarray]]:
     """
@@ -147,6 +148,7 @@ def mine_classic_patterns_for_timeframe(
     rows: List[Dict[str, Any]] = []
     pattern_index_map: Dict[int, Dict[str, List[int]]] = {}
     window_targets_map: Dict[int, np.ndarray] = {}
+    enabled_types = set(pattern_types) if pattern_types else {"sequence", "candle_shape", "feature_rule"}
 
     df_sorted = df.sort_values("open_time").reset_index(drop=True)
     created = datetime.utcnow().isoformat()
@@ -176,18 +178,19 @@ def mine_classic_patterns_for_timeframe(
 
         for idx in range(n_windows):
             win = windows[idx]
-            seq = tuple(dir_labels[idx : idx + w])
-            seq_key = "|".join(seq)
-            seq_map.setdefault(seq_key, []).append(idx)
+            if "sequence" in enabled_types:
+                seq = tuple(dir_labels[idx : idx + w])
+                seq_key = "|".join(seq)
+                seq_map.setdefault(seq_key, []).append(idx)
 
-            sh = tuple(
-                _shape_label(*win[i, :4]) for i in range(w)
-            )
-            sh_key = "|".join(sh)
-            shape_map.setdefault(sh_key, []).append(idx)
+            if "candle_shape" in enabled_types:
+                sh = tuple(_shape_label(*win[i, :4]) for i in range(w))
+                sh_key = "|".join(sh)
+                shape_map.setdefault(sh_key, []).append(idx)
 
-            feat_key = _window_feature_bucket(win)
-            feat_map.setdefault(feat_key, []).append(idx)
+            if "feature_rule" in enabled_types:
+                feat_key = _window_feature_bucket(win)
+                feat_map.setdefault(feat_key, []).append(idx)
 
         def _record(pattern_type: str, mapping: Dict[str, List[int]]) -> None:
             for key, idx_list in mapping.items():
@@ -218,14 +221,17 @@ def mine_classic_patterns_for_timeframe(
                     }
                 )
 
-        _record("sequence", seq_map)
-        _record("candle_shape", shape_map)
-        _record("feature_rule", feat_map)
+        if "sequence" in enabled_types:
+            _record("sequence", seq_map)
+        if "candle_shape" in enabled_types:
+            _record("candle_shape", shape_map)
+        if "feature_rule" in enabled_types:
+            _record("feature_rule", feat_map)
 
         pattern_index_map[w] = {
-            **{f"sequence::{k}": v for k, v in seq_map.items()},
-            **{f"candle_shape::{k}": v for k, v in shape_map.items()},
-            **{f"feature_rule::{k}": v for k, v in feat_map.items()},
+            **({f"sequence::{k}": v for k, v in seq_map.items()} if "sequence" in enabled_types else {}),
+            **({f"candle_shape::{k}": v for k, v in shape_map.items()} if "candle_shape" in enabled_types else {}),
+            **({f"feature_rule::{k}": v for k, v in feat_map.items()} if "feature_rule" in enabled_types else {}),
         }
 
         print(f"[classic] {timeframe} w={w}: patterns={len(pattern_index_map[w])}, windows={n_windows}")
@@ -320,12 +326,12 @@ def _aggregate_pattern_embeddings(
 # -----------------------------------------------------------------------------
 # Runner
 # -----------------------------------------------------------------------------
-def _load_raw(timeframe: str) -> pd.DataFrame:
-    path = RAW_MAP[timeframe]
-    if not path.exists():
-        raise FileNotFoundError(f"Missing raw parquet for timeframe {timeframe}: {path}")
-    df = pd.read_parquet(path)
-    df["open_time"] = pd.to_datetime(df["open_time"], utc=True)
+def _load_features(features_path: Path) -> pd.DataFrame:
+    if not features_path.exists():
+        raise FileNotFoundError(f"Missing features parquet: {features_path}")
+    df = pd.read_parquet(features_path)
+    df["open_time"] = pd.to_datetime(df["open_time"], utc=True, errors="coerce")
+    df = df.dropna(subset=["open_time"])
     df = df.sort_values("open_time").reset_index(drop=True)
     return df
 
@@ -350,52 +356,68 @@ def _save_window_embeddings(
         )
 
 
-def run_advanced_level1_mining_4h5m(
-    window_sizes: Sequence[int] = tuple(range(2, 12)),
+def mine_level1_patterns(
+    timeframe: str,
+    features_path: str,
+    output_patterns_path: str,
+    window_sizes: Sequence[int],
+    pattern_types: Sequence[str],
+    meta: Optional[Dict[str, Any]] = None,
     min_support: int = 25,
-) -> None:
-    DATA_DIR.mkdir(exist_ok=True)
+    output_patterns_with_embeddings_path: Optional[str] = None,
+    output_window_embeddings_path: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    Generic Level-1 pattern miner that mirrors the 5m pipeline:
+      - Uses N past candles (window_size) and the next candle as target.
+      - Mines sequence, candle_shape, and feature_rule patterns.
+      - Computes support, lift, stability exactly as the 5m miner.
+      - Writes a Parquet file with the same schema as patterns_5m_raw_level1.parquet.
+    """
+    df = _load_features(Path(features_path))
+    pattern_types = list(pattern_types)
+    classic_df, pattern_index_map_by_w, _ = mine_classic_patterns_for_timeframe(
+        df,
+        timeframe=timeframe,
+        window_sizes=window_sizes,
+        pattern_types=pattern_types,
+        min_support=min_support,
+    )
 
-    for timeframe in ("4h", "5m"):
-        print(f"[run] timeframe={timeframe}")
-        df = _load_raw(timeframe)
-        patterns_all: List[pd.DataFrame] = []
-        patterns_with_emb: List[Dict[str, Any]] = []
-        window_emb_rows: List[Dict[str, Any]] = []
+    patterns_with_emb: List[Dict[str, Any]] = []
+    window_emb_rows: List[Dict[str, Any]] = []
 
-        classic_df, pattern_index_map_by_w, window_targets_map = mine_classic_patterns_for_timeframe(
-            df, timeframe=timeframe, window_sizes=window_sizes, min_support=min_support
-        )
-        patterns_all.append(classic_df)
+    for w in window_sizes:
+        windows, starts, ends = build_sliding_windows(df, window_size=w)
+        if len(windows) == 0:
+            continue
 
-        for w in window_sizes:
-            windows, starts, ends = build_sliding_windows(df, window_size=w)
-            if len(windows) == 0:
+        model = train_window_embedding_model(windows)
+        emb = compute_window_embeddings(model, windows)
+        _save_window_embeddings(timeframe, w, starts, ends, emb, window_emb_rows)
+
+        pattern_index_map = pattern_index_map_by_w.get(w, {})
+        pattern_emb_map = _aggregate_pattern_embeddings(emb, pattern_index_map)
+
+        for pat_key, vec in pattern_emb_map.items():
+            ptype, definition = pat_key.split("::", 1)
+            if ptype not in pattern_types:
                 continue
+            patterns_with_emb.append(
+                {
+                    "timeframe": timeframe,
+                    "window_size": w,
+                    "pattern_type": ptype,
+                    "definition": definition,
+                    "embedding": vec,
+                }
+            )
 
-            model = train_window_embedding_model(windows)
-            emb = compute_window_embeddings(model, windows)
-            _save_window_embeddings(timeframe, w, starts, ends, emb, window_emb_rows)
+    pat_df = classic_df.copy()
+    pat_df.to_parquet(output_patterns_path, index=False)
 
-            pattern_index_map = pattern_index_map_by_w.get(w, {})
-            pattern_emb_map = _aggregate_pattern_embeddings(emb, pattern_index_map)
-
-            for pat_key, vec in pattern_emb_map.items():
-                ptype, definition = pat_key.split("::", 1)
-                patterns_with_emb.append(
-                    {
-                        "timeframe": timeframe,
-                        "window_size": w,
-                        "pattern_type": ptype,
-                        "definition": definition,
-                        "embedding": vec,
-                    }
-                )
-
-        # Merge classic stats with embeddings
-        pat_df = pd.concat(patterns_all, ignore_index=True) if patterns_all else pd.DataFrame()
+    if output_patterns_with_embeddings_path:
         pat_emb_df = pd.DataFrame(patterns_with_emb)
-
         if not pat_emb_df.empty and not pat_df.empty:
             merged = pat_df.merge(
                 pat_emb_df,
@@ -404,20 +426,52 @@ def run_advanced_level1_mining_4h5m(
             )
         else:
             merged = pat_df.copy()
+        Path(output_patterns_with_embeddings_path).parent.mkdir(parents=True, exist_ok=True)
+        merged.to_parquet(output_patterns_with_embeddings_path, index=False)
+
+    if output_window_embeddings_path and window_emb_rows:
+        win_df = pd.DataFrame(window_emb_rows)
+        Path(output_window_embeddings_path).parent.mkdir(parents=True, exist_ok=True)
+        win_df.to_parquet(output_window_embeddings_path, index=False)
+
+    if meta:
+        print(f"[meta] {meta}")
+
+    return pat_df
+
+
+def run_advanced_level1_mining_4h5m(
+    window_sizes: Sequence[int] = tuple(range(2, 12)),
+    min_support: int = 25,
+) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+
+    for timeframe in ("4h", "5m"):
+        print(f"[run] timeframe={timeframe}")
+        feat_path = FEATURE_MAP[timeframe]
+        pat_df = mine_level1_patterns(
+            timeframe=timeframe,
+            features_path=str(feat_path),
+            output_patterns_path=str(PATTERN_OUT[timeframe]),
+            window_sizes=window_sizes,
+            pattern_types=["sequence", "candle_shape", "feature_rule"],
+            min_support=min_support,
+            output_patterns_with_embeddings_path=str(PATTERN_EMB_OUT[timeframe]),
+            output_window_embeddings_path=str(WINDOW_EMB_OUT[timeframe]),
+        )
 
         pat_out = PATTERN_OUT[timeframe]
         pat_emb_out = PATTERN_EMB_OUT[timeframe]
-        pat_df.to_parquet(pat_out, index=False)
-        merged.to_parquet(pat_emb_out, index=False)
+        win_out = WINDOW_EMB_OUT[timeframe]
 
-        if window_emb_rows:
-            win_df = pd.DataFrame(window_emb_rows)
-            win_out = WINDOW_EMB_OUT[timeframe]
-            win_df.to_parquet(win_out, index=False)
+        if Path(win_out).exists():
+            win_df = pd.read_parquet(win_out)
             print(f"[save] window embeddings {timeframe}: {win_df.shape} -> {win_out}")
 
         print(f"[save] patterns {timeframe}: {pat_df.shape} -> {pat_out}")
-        print(f"[save] patterns+emb {timeframe}: {merged.shape} -> {pat_emb_out}")
+        if Path(pat_emb_out).exists():
+            merged = pd.read_parquet(pat_emb_out)
+            print(f"[save] patterns+emb {timeframe}: {merged.shape} -> {pat_emb_out}")
 
         # Log basics
         if not pat_df.empty:
