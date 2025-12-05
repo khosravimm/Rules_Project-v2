@@ -10,18 +10,9 @@ This module may be removed in the future once all call sites are migrated.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-# Ensure local imports can find the installed/checked-out package
-ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.append(str(SRC_DIR))
-
-from data.ohlcv_loader import load_ohlcv  # type: ignore
+from .ohlcv_loader import load_ohlcv
 
 
 def load_btcusdt_futures_klines(
@@ -49,8 +40,3 @@ def load_btcusdt_futures_klines(
         binance_timeout=binance_timeout,
         coinex_timeout=coinex_timeout,
     )
-
-
-if __name__ == "__main__":  # pragma: no cover
-    # Simple smoke check for manual runs
-    print(load_btcusdt_futures_klines(timeframe="4h", n_candles=10).tail())

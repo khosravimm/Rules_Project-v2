@@ -86,8 +86,9 @@ data_design:
     allow_custom_loader: true
     description: >
       لودرهای داده باید multi-market طراحی شوند و ملزم به پیروی از
-      یک interface مشخص باشند. لودر قبلی (btc_futures_loader.py)
-      صرفاً منبع الهام و نمونه است، نه الزام.
+      یک interface مشخص باشند. Canonical loader:
+      src/data/ohlcv_loader.py::load_ohlcv. لودر قدیمی btc_futures_loader.py
+      deprecated است و نباید در کد جدید استفاده شود؛ بعداً می‌تواند حذف شود.
 
   loader_interface:
     ohlcv_loader_function: "load_ohlcv(market, timeframe, n_candles, source, ...) -> DataFrame"

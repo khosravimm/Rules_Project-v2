@@ -75,12 +75,15 @@ datasets:
     rows_features: 4380
     exchange_primary: coinex+binance
     loader:
-      module: Lib.btc_futures_loader
-      function: load_btcusdt_futures_klines
+      module: data.ohlcv_loader
+      function: load_ohlcv
       params:
+        market: BTCUSDT_PERP
         timeframe: 4h
         n_candles: 4380
         price_type: latest_price
+        primary_exchange: coinex_futures
+        secondary_exchange: binance_futures
     notes:
     - Auto-filled or upgraded by upgrade_btcusdt_4h_kb_schema.py
 features:

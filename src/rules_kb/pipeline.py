@@ -3,24 +3,15 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Iterable, List, Literal, Sequence
 
 import numpy as np
 import pandas as pd
 
-# Allow importing kb/btc_futures_loader.py
+from data.ohlcv_loader import load_ohlcv  # type: ignore
+
 ROOT = Path(__file__).resolve().parents[2]
-KB_DIR = ROOT / "kb"
-if str(KB_DIR) not in sys.path:
-    sys.path.append(str(KB_DIR))
-
-try:  # pragma: no cover - optional dependency path
-    import btc_futures_loader  # type: ignore
-except ImportError as exc:  # pragma: no cover
-    raise ImportError("btc_futures_loader.py not found; expected under kb/") from exc
-
 
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -40,17 +31,21 @@ def fetch_and_cache(
     price_type: str = "latest_price",
     force: bool = False,
 ) -> Path:
-    """Fetch candles via btc_futures_loader and persist as Parquet."""
+    """Fetch candles via the canonical OHLCV loader and persist as Parquet."""
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if out_path.exists() and not force:
         return out_path
 
-    df = btc_futures_loader.load_btcusdt_futures_klines(  # type: ignore[attr-defined]
+    df = load_ohlcv(
+        market="BTCUSDT_PERP",
         timeframe=timeframe,
         n_candles=n_candles,
         price_type=price_type,
+        primary_exchange="coinex_futures",
+        secondary_exchange="binance_futures",
+        tz="Asia/Tehran",
     )
     df = df.sort_values("open_time").reset_index(drop=True)
     df.to_parquet(out_path, index=False)
