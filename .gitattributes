@@ -1,0 +1,2 @@
+data/window_embeddings_5m_level1.parquet filter=lfs diff=lfs merge=lfs -text
+data/pattern_hits_5m_level1.parquet filter=lfs diff=lfs merge=lfs -text
