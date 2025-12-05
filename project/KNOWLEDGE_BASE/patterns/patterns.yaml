@@ -1,0 +1,45 @@
+meta:
+  version: "v1.0.0"
+  updated_at: "2025-12-05T21:15:00Z"
+  source: "Codex Agent"
+  description: "Automatically updated KB record"
+description: "Patterns repository for PrisonBreaker Knowledge Base."
+patterns:
+  - id: "pbk_4h_abcd1234"
+    name: "4h_L2_three_up_strong_body"
+    timeframe: "4h"
+    origin_layer: "L2"
+    pattern_type: "sequence"
+    rule_strength: "strong"
+    support: 42
+    lift: 1.47
+    stability: 0.31
+    conditions:
+      window_length: 3
+      candle_sequence:
+        - "UP"
+        - "UP"
+        - "UP"
+      min_body_ratio: 0.60
+      max_upper_wick_ratio: 0.40
+      volatility_filter: "moderate"
+    target:
+      next_candle_direction: "UP"
+      horizon: "next_4h"
+      confidence_note: "elevated probability vs baseline"
+    tags:
+      - "4h"
+      - "L2"
+      - "sequence"
+      - "three-up"
+      - "strong"
+    notes: >
+      This is a validated 4h L2 sequence pattern derived from mapped 5m
+      micro-structure. When three consecutive 4h candles close UP with
+      sufficiently strong bodies and limited upper wicks under moderate
+      volatility, the next 4h candle shows an UP direction with lift
+      significantly above baseline. This rule is approved by the project
+      owner and should be stored as a strong pattern in the KB.
+rules: []
+examples: []
+notes: []

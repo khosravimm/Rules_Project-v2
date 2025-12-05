@@ -35,6 +35,13 @@ meta:
     - "این فایل سند مادر است و نباید به شکل غیرکنترل‌شده ویرایش شود."
     - "هر تغییر مهم باید نسخه‌ی جدیدی در meta.version ایجاد کند."
     - "جزئیات سطح پیاده‌سازی در فایل‌های دیگری مثل KB schema و کد می‌آیند."
+  version_history:
+    - version: "0.1.1"
+      updated_at: "2025-12-04T00:00:00Z"
+      description: "Initial MASTER_KNOWLEDGE.yaml."
+    - version: "0.1.2"
+      updated_at: "2025-12-05T21:15:00Z"
+      description: "Added Knowledge Base index and pattern registry references."
 
 # ---------------------------------------------------------------------
 # 1. PROJECT_SCOPE – محدوده پروژه و فازها
@@ -236,6 +243,16 @@ PATTERN_DISCOVERY_4H:
   notes:
     - "4H directional patterns with expected_direction and direction-aware evaluation."
     - "5m integration is planned but not yet implemented in the pattern evaluation engine."
+
+# ---------------------------------------------------------------------
+# KNOWLEDGE BASE INDEX – مسیرهای رسمی فایل‌های KB
+# ---------------------------------------------------------------------
+KNOWLEDGE_BASE_INDEX:
+  updated_at: "2025-12-05T21:15:00Z"
+  patterns:
+    - "project/KNOWLEDGE_BASE/patterns/patterns.yaml"
+  layers: []
+  system: []
 
 # ---------------------------------------------------------------------
 # 4. PATTERN_DISCOVERY – کشف الگوها و روابط بین کندل‌ها
