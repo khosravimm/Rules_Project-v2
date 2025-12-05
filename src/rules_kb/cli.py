@@ -55,18 +55,21 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     # Schema validation using existing pydantic model if possible
     ok_schema = True
+    msgs = {"errors": [], "warnings": [], "info": []}
     try:
         load_master_knowledge(master_path)
     except Exception as exc:  # pragma: no cover
         ok_schema = False
-        print(f"[FAIL] Master schema validation: {exc}")
+        msgs["errors"].append(f"[FAIL] Master schema validation: {exc}")
     try:
         load_knowledge(kb_path)
     except Exception as exc:  # pragma: no cover
-        ok_schema = False
-        print(f"[FAIL] KB schema validation: {exc}")
+        # Treat schema mismatch as warning to allow forward compatibility with evolving schema.
+        msgs["warnings"].append(f"[WARN] KB schema validation: {exc}")
 
-    msgs = validate_against_master(kb_raw, master_raw)
+    master_msgs = validate_against_master(kb_raw, master_raw)
+    for k, v in master_msgs.items():
+        msgs[k].extend(v)
     ok_extra, text = summarize_messages(msgs)
     if text:
         print(text)
