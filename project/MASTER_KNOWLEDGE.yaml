@@ -205,6 +205,39 @@ feature_model:
         مدل‌های ML (LSTM/TCN/GBM) را اعمال کرد.
 
 # ---------------------------------------------------------------------
+# DOCS – مستندات مرجع
+# ---------------------------------------------------------------------
+DOCS:
+  DISCOVERY_METHODS_4H:
+    version: "v1.0"
+    fa: "kb/DISCOVERY_METHODS_4H_v1.0_FA.md"
+    en: "kb/DISCOVERY_METHODS_4H_v1.0_EN.md"
+    scope: "BTCUSDT 4h pattern discovery pipeline"
+    status: "stable"
+
+# ---------------------------------------------------------------------
+# 4H PATTERN PIPELINE – پایپ‌لاین کشف الگوی 4ساعته
+# ---------------------------------------------------------------------
+PATTERN_DISCOVERY_4H:
+  symbol: "BTCUSDT"
+  timeframe: "4h"
+  status: "implemented"
+  pipeline:
+    - "src/data/ohlcv_loader.py::load_ohlcv"
+    - "src/features/enrich_4h_pattern_features.py::enrich_btcusdt_4h_pattern_features"
+    - "src/patterns/eval_4h_patterns.py::evaluate_4h_patterns"
+  kb_files:
+    - "kb/rules_4h_patterns.yaml"
+    - "kb/rules_4h_patterns_performance.yaml"
+    - "kb/rules_4h_patterns_labeled.yaml"
+  docs:
+    - "kb/DISCOVERY_METHODS_4H_v1.0_FA.md"
+    - "kb/DISCOVERY_METHODS_4H_v1.0_EN.md"
+  notes:
+    - "4H directional patterns with expected_direction and direction-aware evaluation."
+    - "5m integration is planned but not yet implemented in the pattern evaluation engine."
+
+# ---------------------------------------------------------------------
 # 4. PATTERN_DISCOVERY – کشف الگوها و روابط بین کندل‌ها
 # ---------------------------------------------------------------------
 pattern_discovery:

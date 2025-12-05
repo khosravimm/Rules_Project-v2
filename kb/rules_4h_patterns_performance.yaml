@@ -1,8 +1,13 @@
 meta:
   source_patterns_file: kb/rules_4h_patterns.yaml
   features_file: data/btcusdt_4h_features.parquet
-  generated_at: '2025-12-05T17:02:02.394234'
+  generated_from_stats_file: data/btcusdt_4h_patterns_stats.parquet
+  version: "v1.0"
+  last_evaluated: "2025-12-05T20:55:00Z"
   min_support: 20
+  discovery_docs:
+    fa: "kb/DISCOVERY_METHODS_4H_v1.0_FA.md"
+    en: "kb/DISCOVERY_METHODS_4H_v1.0_EN.md"
 patterns:
 - id: P4H_DIRSEQ2_UPUP_CONT_01
   timeframe: 4h
