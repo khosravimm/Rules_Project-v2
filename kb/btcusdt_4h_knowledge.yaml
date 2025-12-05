@@ -1016,6 +1016,36 @@ trading_rules:
 rule_relations: []
 cross_market_patterns: []
 market_relations: []
-backtests: []
+backtests:
+  simple_4h_rules:
+    run_history:
+    - run_id: simple_4h_rules_20251205_080902
+      created_at: '2025-12-05T08:09:02Z'
+      params:
+        rule_status_filter: draft
+        start_date: null
+        end_date: null
+        max_rules: null
+      results:
+      - rule_id: RULE4H_DIR_L3_003_LONG
+        n_trades: 269
+        n_wins: 121
+        n_losses: 148
+        win_rate: 0.44981412639405205
+        total_R: 4.125024639578084
+        avg_R: 0.015334664087650869
+        max_drawdown_R: -20.115151840398433
+        first_trade_time: '2023-12-08T23:30:00+03:30'
+        last_trade_time: '2025-12-04T19:30:00+03:30'
+      - rule_id: RULE4H_DIR_L4_007_LONG
+        n_trades: 237
+        n_wins: 111
+        n_losses: 126
+        win_rate: 0.46835443037974683
+        total_R: -27.799557697983225
+        avg_R: -0.1172977118058364
+        max_drawdown_R: -27.799557697983225
+        first_trade_time: '2023-12-11T07:30:00+03:30'
+        last_trade_time: '2025-11-29T03:30:00+03:30'
 performance_over_time: []
 status_history: []

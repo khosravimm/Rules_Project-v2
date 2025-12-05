@@ -318,10 +318,16 @@ def attach_backtest_to_kb(
     args: argparse.Namespace,
     results: List[RuleBacktestResult],
 ) -> None:
-    kb.setdefault("backtests", {})
-    kb["backtests"].setdefault("simple_4h_rules", {})
-    kb["backtests"]["simple_4h_rules"].setdefault("run_history", [])
-    run_hist = kb["backtests"]["simple_4h_rules"]["run_history"]
+    # Normalize backtests container
+    if not isinstance(kb.get("backtests"), dict):
+        kb["backtests"] = {}
+    backtests = kb["backtests"]
+    if not isinstance(backtests.get("simple_4h_rules"), dict):
+        backtests["simple_4h_rules"] = {}
+    simple = backtests["simple_4h_rules"]
+    if not isinstance(simple.get("run_history"), list):
+        simple["run_history"] = []
+    run_hist = simple["run_history"]
 
     run_entry = {
         "run_id": run_id,
