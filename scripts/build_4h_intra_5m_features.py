@@ -182,7 +182,8 @@ def main() -> None:
         if not {"open", "close"}.issubset(df5m.columns):
             print("[ERROR] Cannot derive DIR_5M; missing open/close.")
             raise SystemExit(1)
-        dir5m = canonical_dir(np.sign(df5m["close"] - df5m["open"]))
+        sign_series = pd.Series(np.sign(df5m["close"] - df5m["open"]), index=df5m.index)
+        dir5m = canonical_dir(sign_series)
 
     rows: List[Dict[str, Any]] = []
     for ts, row in df4h.iterrows():
