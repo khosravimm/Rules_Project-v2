@@ -44,6 +44,8 @@ def enrich_btcusdt_4h_pattern_features(
     df["DIR_4H"] = np.sign(body)
     df["RET_4H_LAST"] = np.log(close / open_)
     df["DIR_LABEL_4H"] = np.where(df["DIR_4H"] > 0, "UP", np.where(df["DIR_4H"] < 0, "DOWN", "FLAT"))
+    df["DIR_4H_NEXT"] = df["DIR_4H"].shift(-1)
+    df["RET_4H_NEXT"] = df["RET_4H_LAST"].shift(-1)
 
     df["BODY_PCT_MEAN_LAST3"] = df["BODY_PCT_LAST"].rolling(window=3, min_periods=3).mean()
     df["RET_SUM_LAST4"] = df["RET_4H_LAST"].rolling(window=4, min_periods=4).sum()
@@ -96,6 +98,8 @@ def enrich_btcusdt_4h_pattern_features(
         "DIR_4H",
         "DIR_LABEL_4H",
         "RET_4H_LAST",
+        "DIR_4H_NEXT",
+        "RET_4H_NEXT",
         "BODY_PCT_MEAN_LAST3",
         "RET_SUM_LAST4",
         "RET_SUM_LAST5",

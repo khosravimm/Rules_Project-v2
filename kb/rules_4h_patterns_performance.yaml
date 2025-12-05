@@ -1,7 +1,7 @@
 meta:
   source_patterns_file: kb/rules_4h_patterns.yaml
   features_file: data/btcusdt_4h_features.parquet
-  generated_at: '2025-12-05T16:35:26.905055'
+  generated_at: '2025-12-05T16:41:48.571205'
   min_support: 20
 patterns:
 - id: P4H_DIRSEQ2_UPUP_CONT_01
@@ -14,7 +14,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ2_DNDN_CONT_01
   timeframe: 4h
@@ -26,7 +26,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ2_UPDN_REV_01
   timeframe: 4h
@@ -38,7 +38,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ3_UPUPUP_MOM_01
   timeframe: 4h
@@ -50,7 +50,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ3_DNDNDN_MOM_01
   timeframe: 4h
@@ -62,7 +62,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ3_UPDNUP_TRAP_01
   timeframe: 4h
@@ -74,7 +74,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ4_UPUPUPDN_EXH_01
   timeframe: 4h
@@ -86,7 +86,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: missing_feature
 - id: P4H_DIRSEQ4_DNDNDNUP_EXH_01
   timeframe: 4h
@@ -98,7 +98,7 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: missing_feature
 - id: P4H_DIRSEQ4_MIX_CHOP_01
   timeframe: 4h
@@ -110,31 +110,31 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ5_TRENDUP_PULLBACK_01
   timeframe: 4h
   window_length: 5
   support: 4
-  n_up: 0
-  n_down: 0
+  n_up: 3
+  n_down: 1
   n_flat: 0
-  n_eff: 0
-  win_rate: null
-  avg_ret: null
-  baseline_win_rate: null
+  n_eff: 4
+  win_rate: 0.75
+  avg_ret: 0.006546347949725237
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ5_TRENDDN_PULLBACK_01
   timeframe: 4h
   window_length: 5
   support: 2
-  n_up: 0
-  n_down: 0
+  n_up: 1
+  n_down: 1
   n_flat: 0
-  n_eff: 0
-  win_rate: null
-  avg_ret: null
-  baseline_win_rate: null
+  n_eff: 2
+  win_rate: 0.5
+  avg_ret: 0.0009906043704234805
+  baseline_win_rate: 0.5124457638730304
   status_hint: too_rare
 - id: P4H_DIRSEQ5_HIGHVOL_REV_01
   timeframe: 4h
@@ -146,41 +146,41 @@ patterns:
   n_eff: 0
   win_rate: null
   avg_ret: null
-  baseline_win_rate: null
+  baseline_win_rate: 0.5124457638730304
   status_hint: missing_feature
 - id: P4H_DIRSEQ_FILTER_LOWCONF_01
   timeframe: 4h
   window_length: 3
   support: 1010
-  n_up: 0
-  n_down: 0
+  n_up: 495
+  n_down: 514
   n_flat: 0
-  n_eff: 0
-  win_rate: null
-  avg_ret: null
-  baseline_win_rate: null
-  status_hint: no_signal
+  n_eff: 1009
+  win_rate: 0.4905847373637265
+  avg_ret: -0.0003450891341881248
+  baseline_win_rate: 0.5124457638730304
+  status_hint: weak
 - id: P4H_DIRSEQ_TREND_REGIME_UP_01
   timeframe: 4h
   window_length: 5
   support: 71
-  n_up: 0
-  n_down: 0
+  n_up: 33
+  n_down: 38
   n_flat: 0
-  n_eff: 0
-  win_rate: null
-  avg_ret: null
-  baseline_win_rate: null
-  status_hint: no_signal
+  n_eff: 71
+  win_rate: 0.4647887323943662
+  avg_ret: 0.0006643984819602007
+  baseline_win_rate: 0.5124457638730304
+  status_hint: weak
 - id: P4H_DIRSEQ_TREND_REGIME_DN_01
   timeframe: 4h
   window_length: 5
   support: 64
-  n_up: 0
-  n_down: 0
+  n_up: 40
+  n_down: 24
   n_flat: 0
-  n_eff: 0
-  win_rate: null
-  avg_ret: null
-  baseline_win_rate: null
-  status_hint: no_signal
+  n_eff: 64
+  win_rate: 0.625
+  avg_ret: 0.0034533389895722143
+  baseline_win_rate: 0.5124457638730304
+  status_hint: strong
