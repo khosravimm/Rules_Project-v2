@@ -9,6 +9,7 @@ Build 5m direction-sequence pattern KB from mined parquet.
 from __future__ import annotations
 
 import argparse
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +18,12 @@ from typing import Any, Dict, List
 import pandas as pd
 import yaml
 
+# Ensure src/ is importable
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+
+from src.rules_kb.upgrade import upgrade_kb_structure
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build 5m dir-sequence patterns KB (v2).")
@@ -164,6 +171,14 @@ def main() -> None:
         )
 
     kb["patterns"]["dir_sequence_5m"]["items"] = items
+    master_path = Path("project/MASTER_KNOWLEDGE.yaml")
+    master = yaml.safe_load(master_path.read_text(encoding="utf-8")) if master_path.exists() else {}
+    kb = upgrade_kb_structure(
+        kb,
+        master=master,
+        reason="add/update 5m dir_sequence patterns v2",
+        level="minor",
+    )
     write_kb_atomic(kb_path, kb)
     print(f"[OK] Wrote {len(items)} pattern(s) to {kb_path}")
 

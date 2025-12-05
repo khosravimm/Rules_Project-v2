@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, List
 
+from .io import load_yaml, write_yaml_atomic
 from .loader import load_knowledge, load_master_knowledge
 from .models import KnowledgeBase
 from .query import (
@@ -15,6 +16,8 @@ from .query import (
     list_markets,
     list_timeframes,
 )
+from .upgrade import upgrade_kb_structure
+from .validate import summarize_messages, validate_against_master
 
 
 def render_table(headers: List[str], rows: Iterable[Iterable[str]]) -> str:
@@ -44,29 +47,49 @@ def _load_all_knowledge(knowledge_dir: Path) -> List[KnowledgeBase]:
 def cmd_validate(args: argparse.Namespace) -> int:
     """Validate master and knowledge YAMLs."""
 
-    ok = True
     master_path = Path(args.master_path)
-    knowledge_dir = Path(args.knowledge_dir)
+    master_raw = load_yaml(master_path)
 
+    kb_path = Path(args.kb)
+    kb_raw = load_yaml(kb_path)
+
+    # Schema validation using existing pydantic model if possible
+    ok_schema = True
     try:
         load_master_knowledge(master_path)
-        print(f"[OK] {master_path}")
-    except Exception as exc:  # pragma: no cover - exercised via CLI manually
-        ok = False
-        print(f"[FAIL] {master_path}: {exc}")
+    except Exception as exc:  # pragma: no cover
+        ok_schema = False
+        print(f"[FAIL] Master schema validation: {exc}")
+    try:
+        load_knowledge(kb_path)
+    except Exception as exc:  # pragma: no cover
+        ok_schema = False
+        print(f"[FAIL] KB schema validation: {exc}")
 
-    knowledge_files = sorted(knowledge_dir.glob("*_knowledge.yaml"))
-    if not knowledge_files:
-        print(f"No knowledge files found in {knowledge_dir}")
-    for path in knowledge_files:
-        try:
-            load_knowledge(path)
-            print(f"[OK] {path}")
-        except Exception as exc:  # pragma: no cover - exercised via CLI manually
-            ok = False
-            print(f"[FAIL] {path}: {exc}")
+    msgs = validate_against_master(kb_raw, master_raw)
+    ok_extra, text = summarize_messages(msgs)
+    if text:
+        print(text)
 
-    return 0 if ok else 1
+    return 0 if (ok_schema and ok_extra) else 1
+
+
+def cmd_upgrade(args: argparse.Namespace) -> int:
+    """Upgrade KB structure and bump version."""
+
+    kb_path = Path(args.kb)
+    master_path = Path(args.master_path)
+    kb_raw = load_yaml(kb_path)
+    master_raw = load_yaml(master_path)
+    kb_upgraded = upgrade_kb_structure(
+        kb_raw,
+        master=master_raw,
+        reason=args.reason,
+        level=args.level,
+    )
+    write_yaml_atomic(kb_path, kb_upgraded)
+    print(f"[OK] KB upgraded and written to {kb_path}")
+    return 0
 
 
 def cmd_list_markets(args: argparse.Namespace) -> int:
@@ -151,14 +174,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--knowledge-dir",
         default=Path("kb"),
-        help="Directory containing *_knowledge.yaml files.",
+        help="Directory containing *_knowledge.yaml files (used by list-* commands).",
     )
-
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("validate", help="Validate master and knowledge YAML files.").set_defaults(
-        func=cmd_validate
+    validate_parser = subparsers.add_parser("validate", help="Validate master and a KB YAML file.")
+    validate_parser.add_argument("--kb", default=Path("kb/btcusdt_4h_knowledge.yaml"), help="KB YAML to validate.")
+    validate_parser.set_defaults(func=cmd_validate)
+
+    upgrade_parser = subparsers.add_parser("upgrade", help="Upgrade KB structure and bump version.")
+    upgrade_parser.add_argument("--kb", default=Path("kb/btcusdt_4h_knowledge.yaml"), help="KB YAML to upgrade.")
+    upgrade_parser.add_argument(
+        "--level",
+        choices=["major", "minor", "patch"],
+        default="patch",
+        help="Version bump level.",
     )
+    upgrade_parser.add_argument(
+        "--reason",
+        default="kb upgrade",
+        help="Reason to store in version history notes.",
+    )
+    upgrade_parser.set_defaults(func=cmd_upgrade)
 
     subparsers.add_parser("list-markets", help="List markets defined in master knowledge.").set_defaults(
         func=cmd_list_markets
@@ -197,4 +234,3 @@ def main(argv: List[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry
     sys.exit(main())
-

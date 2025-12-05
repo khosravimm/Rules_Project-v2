@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import yaml
 
+from src.rules_kb.upgrade import upgrade_kb_structure
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build KB for 4h micro-patterns mined from 5m data (v2).")
@@ -148,6 +149,14 @@ def main() -> None:
         )
 
     kb["patterns"]["intra_4h_from_5m"]["items"] = items
+    master_path = Path("project/MASTER_KNOWLEDGE.yaml")
+    master = yaml.safe_load(master_path.read_text(encoding="utf-8")) if master_path.exists() else {}
+    kb = upgrade_kb_structure(
+        kb,
+        master=master,
+        reason="add/update micro 4h_from_5m patterns v2",
+        level="minor",
+    )
     write_kb_atomic(kb_path, kb)
     print(f"[OK] Wrote {len(items)} micro-pattern(s) to {kb_path}")
 
