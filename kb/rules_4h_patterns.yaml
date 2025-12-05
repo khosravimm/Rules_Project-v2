@@ -1,0 +1,364 @@
+# =====================================================================
+# rules_4h_patterns.yaml — نسخه 0.1.0
+# بانک الگوهای دنباله جهت (Direction Sequence) روی کندل‌های 4h BTCUSDT
+# مبتنی بر خروجی btcusdt_4h_patterns_auto.* (نسخه‌ی اولیه، انتخاب دستی)
+# =====================================================================
+
+meta:
+  file_name: "rules_4h_patterns.yaml"
+  version: "0.1.0"
+  created_at: "2025-12-05"
+  project_codename: "PrisonBreaker"
+  description: >
+    این فایل، الگوهای اصلی مبتنی بر دنباله‌ی جهت کندل‌های 4ساعته BTCUSDT را
+    مطابق KB_SCHEMA در قالب PATTERNS ثبت می‌کند. نسخه‌ی حاضر یک نسخه‌ی اولیه
+    (Draft) است که با الهام از نتایج الگوهای خودکار (btcucst_4h_patterns_auto.*)
+    طراحی شده و آماده‌ی همگام‌سازی با آمار واقعی (win_rate، sample_size و ...)
+    در فایل‌های مکمل performance_over_time و status_history است.
+  source_data_files:
+    - "data/btcusdt_4h_features.parquet"
+    - "data/btcusdt_4h_patterns_auto.parquet"
+    - "data/btcusdt_4h_patterns_auto.json"
+  notes:
+    - "نسخه 0.1.0 فقط الگوهای forward روی تایم‌فریم 4h را پوشش می‌دهد."
+    - "الگوها از نوع Direction Sequence هستند و از فیچر DIR_SEQ_4H استفاده می‌کنند."
+    - "آمار دقیق هر الگو باید در فایل‌های جداگانه performance_over_time و status_history ثبت شود."
+
+# ---------------------------------------------------------------------
+# 1. DATASETS – دیتاست‌های مورد استفاده در این فایل
+# ---------------------------------------------------------------------
+
+datasets:
+  - id: "btcusdt_4h_core_v1"
+    symbol: "BTCUSDT"
+    market: "BTCUSDT_PERP"
+    timeframe: "4h"
+    source: ["binance_futures", "coinex_futures"]
+    date_range:
+      start: "2023-12-01"
+      end:   "2025-12-01"
+    n_candles: 4380
+    file_path: "data/btcusdt_4h_features.parquet"
+
+# ---------------------------------------------------------------------
+# 2. PATTERNS – الگوهای دنباله جهت 4h (forward patterns)
+# ---------------------------------------------------------------------
+# نکته:
+# - از فیچر DIR_SEQ_4H برای نمایش دنباله‌ی جهت استفاده می‌کنیم.
+# - مقدار DIR_SEQ_4H به‌صورت رشته‌ای مثل "UP,UP,DOWN" یا "DOWN,DOWN" است.
+# - target همواره DIR_4H_NEXT است (جهت کندل بعدی 4h).
+# - status در این نسخه عمدتاً exploratory/candidate است تا پس از بک‌تست به‌روز شود.
+
+patterns:
+
+  # ===========================
+  # گروه 1 – دنباله‌های 2 کندلی
+  # ===========================
+
+  - id: "P4H_DIRSEQ2_UPUP_CONT_01"
+    name: "2-bar up continuation in low-mid volatility"
+    description: >
+      اگر دو کندل 4ساعته آخر صعودی باشند (UP,UP) و نوسان کلی در محدوده LOW/MID
+      باشد، احتمال تداوم حرکت صعودی در کندل بعدی نسبت به پایه بالاتر است.
+      این الگو بیشتر شبیه یک روند آرام و نسبتاً پایدار است تا شکست پارابولیک.
+    window_length: 2
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,UP" }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["direction_sequence", "trend_continuation", "low_vol"]
+
+  - id: "P4H_DIRSEQ2_DNDN_CONT_01"
+    name: "2-bar down continuation in low-mid volatility"
+    description: >
+      اگر دو کندل 4ساعته آخر نزولی باشند (DOWN,DOWN) و در محدوده نوسان LOW/MID
+      قرار داشته باشیم، احتمال ادامه ریزش در کندل بعدی بالاتر از حالت پایه است.
+      این الگو به‌خصوص در فازهای اصلاحی منظم بازار دیده می‌شود.
+    window_length: 2
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "DOWN,DOWN" }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["direction_sequence", "trend_continuation", "low_vol"]
+
+  - id: "P4H_DIRSEQ2_UPDN_REV_01"
+    name: "Up-then-down exhaustion (reversal bias)"
+    description: >
+      دنباله UP,DOWN در 2 کندل آخر، به‌خصوص وقتی بدنه کندل دوم نسبتاً بزرگ و
+      سایه بالا سنگین باشد، اغلب به‌عنوان الگوی خستگی خرید تفسیر می‌شود و
+      احتمال نزولی بودن کندل بعدی را افزایش می‌دهد.
+    window_length: 2
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,DOWN" }
+      - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
+      - { feature: "UPPER_WICK_PCT_LAST", operator: ">", value: 0.25 }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["direction_sequence", "reversal", "exhaustion", "wick"]
+
+  # ===========================
+  # گروه 2 – دنباله‌های 3 کندلی
+  # ===========================
+
+  - id: "P4H_DIRSEQ3_UPUPUP_MOM_01"
+    name: "3-bar strong bullish momentum"
+    description: >
+      سه کندل صعودی متوالی (UP,UP,UP) با بدنه‌های نسبتاً بزرگ و حجم
+      حداقل متوسط، نشانه‌ی مومنتوم قوی خرید است. در بسیاری از مواقع، کندل
+      بعدی نیز تمایل به صعود دارد؛ اما ریسک ورود دیرهنگام (late entry) وجود دارد.
+    window_length: 3
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,UP,UP" }
+      - { feature: "BODY_PCT_MEAN_LAST3", operator: ">", value: 0.30 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_MID", "VOL_HIGH"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["momentum", "direction_sequence", "bullish"]
+
+  - id: "P4H_DIRSEQ3_DNDNDN_MOM_01"
+    name: "3-bar strong bearish momentum"
+    description: >
+      سه کندل نزولی متوالی (DOWN,DOWN,DOWN) با بدنه‌های نسبتاً بزرگ و
+      افزایش حجم، نشانه‌ی مومنتوم قوی فروش است. این الگو معمولاً در روندهای
+      ریزشی شدید یا فازهای تسلیم (capitulation-like) دیده می‌شود.
+    window_length: 3
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "DOWN,DOWN,DOWN" }
+      - { feature: "BODY_PCT_MEAN_LAST3", operator: ">", value: 0.30 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "==", value: "VOL_HIGH" }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["momentum", "direction_sequence", "bearish"]
+
+  - id: "P4H_DIRSEQ3_UPDNUP_TRAP_01"
+    name: "Up-down-up bull trap candidate"
+    description: >
+      الگوی جهت (UP,DOWN,UP) در 3 کندل اخیر، همراه با سایه‌های بالا در دو
+      کندل آخر و حجم رو به افزایش، می‌تواند یک bull trap بالقوه باشد که
+      احتمال نزولی شدن کندل بعدی را بالا می‌برد (خروج دیرهنگام خریداران).
+    window_length: 3
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,DOWN,UP" }
+      - { feature: "UPPER_WICK_PCT_LAST", operator: ">", value: 0.30 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_MID", "VOL_HIGH"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["trap", "reversal", "direction_sequence"]
+
+  # ===========================
+  # گروه 3 – دنباله‌های 4 کندلی
+  # ===========================
+
+  - id: "P4H_DIRSEQ4_UPUPUPDN_EXH_01"
+    name: "3 up then one sharp down (bull exhaustion)"
+    description: >
+      سه کندل صعودی و سپس یک کندل نزولی قوی (UP,UP,UP,DOWN) با بدنه بزرگ
+      نزولی، معمولاً نشانه‌ی خستگی روند صعودی و شروع فاز اصلاح است. در خیلی
+      از موارد، کندل بعدی نیز تمایل به نزول یا حداقل ناتوانی در ساخت سقف
+      جدید دارد.
+    window_length: 4
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "UP,UP,UP,DOWN" }
+      - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
+      - { feature: "CLOSE_POSITION_LAST", operator: "<", value: 0.25 }  # بسته شدن نزدیک کف
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["exhaustion", "reversal", "direction_sequence"]
+
+  - id: "P4H_DIRSEQ4_DNDNDNUP_EXH_01"
+    name: "3 down then one sharp up (bear exhaustion)"
+    description: >
+      سه کندل نزولی و سپس یک کندل صعودی قوی (DOWN,DOWN,DOWN,UP) با بدنه
+      بزرگ و بسته‌شدن نزدیک سقف، نشانه‌ی خستگی فروشندگان و احتمال شروع
+      فاز بازگشت یا حداقل رنج صعودی است.
+    window_length: 4
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "==", value: "DOWN,DOWN,DOWN,UP" }
+      - { feature: "BODY_PCT_LAST", operator: ">", value: 0.35 }
+      - { feature: "CLOSE_POSITION_LAST", operator: ">", value: 0.75 }  # بسته شدن نزدیک سقف
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["exhaustion", "reversal", "direction_sequence"]
+
+  - id: "P4H_DIRSEQ4_MIX_CHOP_01"
+    name: "Mixed choppy sequence (range-prone)"
+    description: >
+      ترکیبی از بالا و پایین که ساختار مشخص روندی ندارد (مثلاً UP,DOWN,UP,DOWN
+      یا DOWN,UP,DOWN,UP) اغلب به‌معنای بازار رنج یا نامطمئن است و جهت کندل
+      بعدی بیشتر حول توزیع پایه می‌چرخد. این الگو بیشتر برای فیلتر کردن
+      عدم قطعیت به‌کار می‌رود تا سیگنال مستقیم ورود.
+    window_length: 4
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "in", value: ["UP,DOWN,UP,DOWN", "DOWN,UP,DOWN,UP"] }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["choppy", "range", "filter_only"]
+
+  # ===========================
+  # گروه 4 – دنباله‌های 5 کندلی
+  # ===========================
+
+  - id: "P4H_DIRSEQ5_TRENDUP_PULLBACK_01"
+    name: "Trend up with last-bar pullback"
+    description: >
+      چهار کندل عمدتاً صعودی با یک پولبک در کندل آخر (الگوهایی از جنس
+      UP,UP,UP,UP,DOWN یا UP,UP,DOWN,UP,DOWN) که در آن مجموع بازده 4 کندل
+      اول مثبت و بازده کندل آخر منفی است. در این حالت، کندل بعدی در بسیاری از
+      مواقع تمایل به ادامه روند اصلی (صعود) دارد، مگر در شرایط VOL_HIGH شدید.
+    window_length: 5
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "in",
+          value: ["UP,UP,UP,UP,DOWN", "UP,UP,DOWN,UP,DOWN"] }
+      - { feature: "RET_SUM_LAST4", operator: ">", value: 0.04 }
+      - { feature: "RET_4H_LAST", operator: "<", value: 0.0 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["trend", "pullback", "continuation"]
+
+  - id: "P4H_DIRSEQ5_TRENDDN_PULLBACK_01"
+    name: "Trend down with last-bar pullback"
+    description: >
+      مشابه الگوی قبلی، اما در جهت نزولی: چند کندل نزولی با یک کندل صعودی
+      انتهایی که بیشتر به‌صورت پولبک در روند نزولی عمل می‌کند و نه آغاز
+      یک روند صعودی کامل. کندل بعدی در بسیاری موارد مجدداً نزولی می‌شود.
+    window_length: 5
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H", operator: "in",
+          value: ["DOWN,DOWN,DOWN,DOWN,UP", "DOWN,DOWN,UP,DOWN,UP"] }
+      - { feature: "RET_SUM_LAST4", operator: "<", value: -0.04 }
+      - { feature: "RET_4H_LAST", operator: ">", value: 0.0 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "in", value: ["VOL_LOW", "VOL_MID"] }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["trend", "pullback", "continuation"]
+
+  - id: "P4H_DIRSEQ5_HIGHVOL_REV_01"
+    name: "High-volatility reversal cluster"
+    description: >
+      دنباله‌ای از 5 کندل با تغییر جهت شدید و حجم/نوسان بالا (VOL_HIGH)،
+      همراه با سایه‌های بلند و بازه‌های قیمتی بزرگ، اغلب به‌عنوان خوشه‌ی
+      معکوس‌کننده (reversal cluster) عمل می‌کند؛ یعنی پس از یک دوره‌ی
+      دیوانه‌وار، کندل بعدی تمایل دارد خلاف جهت غالب خوشه حرکت کند.
+      این الگو بیشتر به‌عنوان هشدار پایان فاز افراطی بازار استفاده می‌شود.
+    window_length: 5
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "VOL_BUCKET_4H_LAST5_MAX", operator: "==", value: "VOL_HIGH" }
+      - { feature: "BODY_PCT_MEAN_LAST5", operator: ">", value: 0.30 }
+      - { feature: "UPPER_WICK_PCT_MEAN_LAST5", operator: ">", value: 0.20 }
+      - { feature: "LOWER_WICK_PCT_MEAN_LAST5", operator: ">", value: 0.20 }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["high_vol", "reversal_cluster", "exhaustion"]
+
+  # ===========================
+  # گروه 5 – الگوهای کمکی (فیلتر/متا)
+  # ===========================
+
+  - id: "P4H_DIRSEQ_FILTER_LOWCONF_01"
+    name: "Low-confidence direction filter"
+    description: >
+      الگوهایی که در آن توالی جهت 4h الگوی مشخصی از روند یا بازگشت را نشان
+      نمی‌دهد و همچنین VOL_BUCKET عمدتاً در محدوده‌ی LOW است، معمولاً
+      ارزش سیگنال‌دهی مستقیم ندارند و بیشتر برای فیلتر کردن عدم قطعیت
+      (عدم ورود) استفاده می‌شوند.
+    window_length: 3
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DIR_SEQ_4H_CONF_SCORE", operator: "<", value: 0.55 }
+      - { feature: "VOL_BUCKET_4H_LAST", operator: "==", value: "VOL_LOW" }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["filter_only", "low_confidence", "direction_sequence"]
+
+  - id: "P4H_DIRSEQ_TREND_REGIME_UP_01"
+    name: "Trend-up regime tag"
+    description: >
+      این الگو بیشتر نقش meta دارد و به‌عنوان نشانه‌ی قرار داشتن در رژیم
+      روند صعودی استفاده می‌شود: درصد بالای کندل‌های UP در پنجره 5 کندلی
+      اخیر و RET_SUM مثبت. از این الگو در کنار قوانین معاملاتی دیگر برای
+      فعال/غیرفعال کردن سیگنال‌ها در رژیم‌های مختلف استفاده می‌شود.
+    window_length: 5
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "UP_COUNT_LAST5", operator: ">=", value: 4 }
+      - { feature: "RET_SUM_LAST5", operator: ">", value: 0.05 }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["meta", "regime", "trend_up"]
+
+  - id: "P4H_DIRSEQ_TREND_REGIME_DN_01"
+    name: "Trend-down regime tag"
+    description: >
+      مشابه الگوی قبلی، اما برای تشخیص رژیم روند نزولی: تعداد بالای کندل‌های
+      DOWN در پنجره 5 کندلی اخیر و RET_SUM منفی. این الگو برای تغییر رفتار
+      قوانین معاملاتی در بازارهای نزولی استفاده می‌شود.
+    window_length: 5
+    timeframe: "4h"
+    type: "forward"
+    conditions:
+      - { feature: "DOWN_COUNT_LAST5", operator: ">=", value: 4 }
+      - { feature: "RET_SUM_LAST5", operator: "<", value: -0.05 }
+    target: "DIR_4H_NEXT"
+    dataset_used: "btcusdt_4h_core_v1"
+    status: "exploratory"
+    tags: ["meta", "regime", "trend_down"]
+
+# ---------------------------------------------------------------------
+# 3. سایر بخش‌ها (در این فایل خالی می‌مانند و در فایل‌های اختصاصی پر می‌شوند)
+# ---------------------------------------------------------------------
+
+trading_rules: []           # قوانین معاملاتی بر اساس این الگوها در فایل جداگانه می‌آیند.
+rule_relations: []          # روابط بین قوانین/الگوها در فایل جداگانه.
+cross_market_patterns: []   # در فایل cross_market_*.yaml
+market_relations: []        # در فایل market_relations.yaml
+backtests: []               # در فایل‌های نتایج بک‌تست
+performance_over_time: []   # در فایل performance_over_time.yaml
+status_history: []          # در فایل status_history.yaml
+
+# =====================================================================
+# پایان نسخه 0.1.0 از rules_4h_patterns.yaml
+# =====================================================================
