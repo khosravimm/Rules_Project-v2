@@ -1,244 +1,212 @@
-# =====================================================================
-# kb/btcusdt_4h_knowledge.yaml
-# بانک دانش اولیه برای BTCUSDT (4h + 5m) بر اساس KB_SCHEMA 0.1.0
-# نسخه: 0.1.0
-# =====================================================================
-
 meta:
-  kb_version: "0.1.0"
-  schema_version: "0.1.0"
-  project_codename: "PrisonBreaker"
-  symbol: "BTCUSDT"
-  market: "BTCUSDT_PERP"
-  description: >
-    بانک دانش اولیه BTCUSDT برای تایم‌فریم 4h (به همراه میکروساختار 5m)،
-    شامل تعریف دیتاست‌ها، فیچرها و اسکلت خالی برای خوشه‌ها، الگوها،
-    قوانین معاملاتی و نتایج بک‌تست. این فایل مطابق KB_SCHEMA.yaml
-    طراحی شده و به‌صورت تدریجی با کشف الگوها و اجرای بک‌تست‌ها
-    تکمیل خواهد شد.
+  kb_version: 0.1.0
+  schema_version: 0.1.0
+  project_codename: PrisonBreaker
+  symbol: BTCUSDT
+  market: BTCUSDT_PERP
+  description: 'بانک دانش اولیه BTCUSDT برای تایم‌فریم 4h (به همراه میکروساختار 5m)،
+    شامل تعریف دیتاست‌ها، فیچرها و اسکلت خالی برای خوشه‌ها، الگوها، قوانین معاملاتی
+    و نتایج بک‌تست. این فایل مطابق KB_SCHEMA.yaml طراحی شده و به‌صورت تدریجی با کشف
+    الگوها و اجرای بک‌تست‌ها تکمیل خواهد شد.
+
+    '
   notes:
-    - "در این نسخه هنوز هیچ الگوی نهایی یا قانون معاملاتی ثبت نشده است."
-    - "بعد از اجرای data_prep_4h5m و اولین دور pattern mining این فایل باید غنی شود."
-    - "همه‌ی تغییرات مهم در این فایل باید نسخه‌ی kb_version را افزایش دهد."
-    - "روابط lead-lag و Cross-Market هنوز ثبت نشده؛ پس از اجرای پایپلاین cross_market_analysis و continuous_rebacktest_and_refresh باید market_relations و cross_market_patterns تکمیل شود."
-    - "پایش دوره‌ای و بک‌تست مجدد (پایپلاین continuous_rebacktest_and_refresh) برای به‌روزرسانی الگوها، قوانین، backtests و performance_over_time الزامی است."
-
-# ---------------------------------------------------------------------
-# 1. DATASETS – تعریف منابع داده استفاده‌شده
-# ---------------------------------------------------------------------
+  - در این نسخه هنوز هیچ الگوی نهایی یا قانون معاملاتی ثبت نشده است.
+  - بعد از اجرای data_prep_4h5m و اولین دور pattern mining این فایل باید غنی شود.
+  - همه‌ی تغییرات مهم در این فایل باید نسخه‌ی kb_version را افزایش دهد.
+  - روابط lead-lag و Cross-Market هنوز ثبت نشده؛ پس از اجرای پایپلاین cross_market_analysis
+    و continuous_rebacktest_and_refresh باید market_relations و cross_market_patterns
+    تکمیل شود.
+  - پایش دوره‌ای و بک‌تست مجدد (پایپلاین continuous_rebacktest_and_refresh) برای به‌روزرسانی
+    الگوها، قوانین، backtests و performance_over_time الزامی است.
+  timeframe_core: 4h
+  version: 0.2.0
+  created_at: '2025-12-05'
+  updated_at: '2025-12-05'
 datasets:
-  # دیتاست 4 ساعته با فیچرهای آماده (خروجی data_prep_4h5m.py)
-  - id: "btcusdt_4h_core_v1"
-    symbol: "BTCUSDT"
-    market: "BTCUSDT_PERP"
-    timeframe: "4h"
-    source: ["binance_futures", "coinex_futures"]
-    date_range:
-      # این بازه بعد از اجرای واقعی لودر باید دقیق تنظیم شود
-      start: "2023-12-01"
-      end: "2025-12-01"
-    n_candles: 4380     # تخمینی برای 2 سال 4h
-    file_path: "data/btcusdt_4h_features.parquet"
-
-  # دیتاست خام 5 دقیقه‌ای (برای میکروساختار و aggregate کردن به 4h)
-  - id: "btcusdt_5m_raw_v1"
-    symbol: "BTCUSDT"
-    market: "BTCUSDT_PERP"
-    timeframe: "5m"
-    source: ["binance_futures", "coinex_futures"]
-    date_range:
-      start: "2023-12-01"
-      end: "2025-12-01"
-    n_candles: 210240   # تخمینی برای 2 سال 5m
-    file_path: "data/btcusdt_5m_raw.parquet"
-
-# ---------------------------------------------------------------------
-# 2. FEATURES – فیچرهای رسمی برای کندل‌های 4h و 5m
-# ---------------------------------------------------------------------
+  btcusdt_4h:
+    path_raw: data/btcusdt_4h_raw.parquet
+    path_features: data/btcusdt_4h_features.parquet
+    timeframe: 4h
+    rows_raw: 4380
+    rows_features: 4380
+    exchange_primary: coinex+binance
+    loader:
+      module: Lib.btc_futures_loader
+      function: load_btcusdt_futures_klines
+      params:
+        timeframe: 4h
+        n_candles: 4380
+        price_type: latest_price
+    notes:
+    - Auto-filled or upgraded by upgrade_btcusdt_4h_kb_schema.py
 features:
-  # --------- فیچرهای سطح 4h (اصلی) ---------
-  - name: "RET_4H"
-    description: "بازده کندل 4 ساعته"
-    dtype: "float"
-    origin_level: "4h"
-    formula: "close/open - 1"
-    tags: ["return"]
-
-  - name: "DIR_4H"
-    description: "جهت کندل 4h بر اساس close - open (RET_UP/RET_DOWN)"
-    dtype: "categorical"
-    origin_level: "4h"
-    formula: "DIR_4H = 'RET_UP' if close > open else 'RET_DOWN'"
-    tags: ["direction", "label"]
-
-  - name: "BODY_PCT"
-    description: "نسبت بدنه به کل رنج کندل 4h"
-    dtype: "float"
-    origin_level: "4h"
-    formula: "abs(close - open) / (high - low + epsilon)"
-    tags: ["shape"]
-
-  - name: "UPPER_WICK_PCT"
-    description: "نسبت سایه بالایی به رنج کندل 4h"
-    dtype: "float"
-    origin_level: "4h"
-    formula: "(high - max(open, close)) / (high - low + epsilon)"
-    tags: ["shape"]
-
-  - name: "LOWER_WICK_PCT"
-    description: "نسبت سایه پایینی به رنج کندل 4h"
-    dtype: "float"
-    origin_level: "4h"
-    formula: "(min(open, close) - low) / (high - low + epsilon)"
-    tags: ["shape"]
-
-  - name: "RANGE_PCT"
-    description: "رنج کندل نسبت به قیمت باز"
-    dtype: "float"
-    origin_level: "4h"
-    formula: "(high - low) / open"
-    tags: ["volatility", "range"]
-
-  - name: "VOL_BUCKET_4H"
-    description: "باکت‌بندی اندازه حرکت کندل (کم/متوسط/زیاد)"
-    dtype: "categorical"
-    origin_level: "4h"
-    formula: "discretization of |RET_4H| into {VOL_LOW, VOL_MID, VOL_HIGH}"
-    tags: ["volatility", "bucket"]
-
-  - name: "REGIME_STATE"
-    description: "حالت رژیم بازار (مثلاً بر اساس HMM روی بازده/نوسان)"
-    dtype: "categorical"
-    origin_level: "4h"
-    formula: "state from regime detection model (e.g., HMM)"
-    tags: ["regime", "state"]
-
-  # --------- فیچرهای aggregate شده از 5m به 4h ---------
-  - name: "M5_PATH_TREND_RET"
-    description: "شیب رگرسیون قیمت 5m ها داخل کندل 4h (تمایل روند میکرو)"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "slope of linear regression of 5m close prices within 4h candle"
-    tags: ["microstructure", "trend"]
-
-  - name: "M5_MAX_DRAWDOWN_PCT"
-    description: "بزرگ‌ترین افت (peak-to-trough) داخل مسیر 5m در 4h"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "max drawdown in percent within all 5m closes inside the 4h candle"
-    tags: ["microstructure", "risk"]
-
-  - name: "M5_MAX_RUNUP_PCT"
-    description: "بزرگ‌ترین رشد (trough-to-peak) داخل مسیر 5m در 4h"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "max runup in percent within all 5m closes inside the 4h candle"
-    tags: ["microstructure", "opportunity"]
-
-  - name: "M5_VOLUME_EARLY_FRAC"
-    description: "سهم حجم 1/3 ابتدایی کندل‌های 5m از کل حجم 4h"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "sum(volume_5m in first 1/3 bars) / sum(volume_5m in all bars of 4h)"
-    tags: ["microstructure", "volume_profile"]
-
-  - name: "M5_VOLUME_LATE_FRAC"
-    description: "سهم حجم 1/3 انتهایی کندل‌های 5m از کل حجم 4h"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "sum(volume_5m in last 1/3 bars) / sum(volume_5m in all bars of 4h)"
-    tags: ["microstructure", "volume_profile"]
-
-  - name: "M5_INTRA_VOLATILITY_PCT"
-    description: "نوسان نسبی مسیر 5m داخل 4h (مثلاً std بازده 5m)"
-    dtype: "float"
-    origin_level: "aggregated_5m_to_4h"
-    formula: "std(RET_5M within 4h) or (max-min)/open_4h"
-    tags: ["microstructure", "volatility"]
-
-  # --------- فیچرهای سطح 5m (برای تحلیل‌های micro مستقل) ---------
-  - name: "RET_5M"
-    description: "بازده کندل 5 دقیقه‌ای"
-    dtype: "float"
-    origin_level: "5m"
-    formula: "close/open - 1"
-    tags: ["return"]
-
-  - name: "DIR_5M"
-    description: "جهت کندل 5m (RET_UP/RET_DOWN)"
-    dtype: "categorical"
-    origin_level: "5m"
-    formula: "DIR_5M = 'RET_UP' if close > open else 'RET_DOWN'"
-    tags: ["direction", "label"]
-
-  - name: "BODY_PCT_5M"
-    description: "نسبت بدنه کندل 5m به رنج آن"
-    dtype: "float"
-    origin_level: "5m"
-    formula: "abs(close - open) / (high - low + epsilon)"
-    tags: ["shape"]
-
-  - name: "INTRA_4H_INDEX_5M"
-    description: "شماره کندل 5m داخل کندل 4h والد (0,1,2,...)"
-    dtype: "int"
-    origin_level: "5m"
-    formula: "index of 5m bar within its parent 4h bar"
-    tags: ["microstructure", "position_in_parent"]
-
-  - name: "VOL_BUCKET_5M"
-    description: "باکت‌بندی اندازه حرکت کندل 5m (low/mid/high)"
-    dtype: "categorical"
-    origin_level: "5m"
-    formula: "discretization of |RET_5M| into {VOL_LOW, VOL_MID, VOL_HIGH}"
-    tags: ["volatility", "bucket"]
-
-# ---------------------------------------------------------------------
-# 3. CLUSTERS – فعلاً خالی، بعداً با خوشه‌های واقعی پر می‌شود
-# ---------------------------------------------------------------------
+- name: RET_4H
+  description: بازده کندل 4 ساعته
+  dtype: float
+  origin_level: 4h
+  formula: close/open - 1
+  tags:
+  - return
+- name: DIR_4H
+  description: جهت کندل 4h بر اساس close - open (RET_UP/RET_DOWN)
+  dtype: categorical
+  origin_level: 4h
+  formula: DIR_4H = 'RET_UP' if close > open else 'RET_DOWN'
+  tags:
+  - direction
+  - label
+- name: BODY_PCT
+  description: نسبت بدنه به کل رنج کندل 4h
+  dtype: float
+  origin_level: 4h
+  formula: abs(close - open) / (high - low + epsilon)
+  tags:
+  - shape
+- name: UPPER_WICK_PCT
+  description: نسبت سایه بالایی به رنج کندل 4h
+  dtype: float
+  origin_level: 4h
+  formula: (high - max(open, close)) / (high - low + epsilon)
+  tags:
+  - shape
+- name: LOWER_WICK_PCT
+  description: نسبت سایه پایینی به رنج کندل 4h
+  dtype: float
+  origin_level: 4h
+  formula: (min(open, close) - low) / (high - low + epsilon)
+  tags:
+  - shape
+- name: RANGE_PCT
+  description: رنج کندل نسبت به قیمت باز
+  dtype: float
+  origin_level: 4h
+  formula: (high - low) / open
+  tags:
+  - volatility
+  - range
+- name: VOL_BUCKET_4H
+  description: باکت‌بندی اندازه حرکت کندل (کم/متوسط/زیاد)
+  dtype: categorical
+  origin_level: 4h
+  formula: discretization of |RET_4H| into {VOL_LOW, VOL_MID, VOL_HIGH}
+  tags:
+  - volatility
+  - bucket
+- name: REGIME_STATE
+  description: حالت رژیم بازار (مثلاً بر اساس HMM روی بازده/نوسان)
+  dtype: categorical
+  origin_level: 4h
+  formula: state from regime detection model (e.g., HMM)
+  tags:
+  - regime
+  - state
+- name: M5_PATH_TREND_RET
+  description: شیب رگرسیون قیمت 5m ها داخل کندل 4h (تمایل روند میکرو)
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: slope of linear regression of 5m close prices within 4h candle
+  tags:
+  - microstructure
+  - trend
+- name: M5_MAX_DRAWDOWN_PCT
+  description: بزرگ‌ترین افت (peak-to-trough) داخل مسیر 5m در 4h
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: max drawdown in percent within all 5m closes inside the 4h candle
+  tags:
+  - microstructure
+  - risk
+- name: M5_MAX_RUNUP_PCT
+  description: بزرگ‌ترین رشد (trough-to-peak) داخل مسیر 5m در 4h
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: max runup in percent within all 5m closes inside the 4h candle
+  tags:
+  - microstructure
+  - opportunity
+- name: M5_VOLUME_EARLY_FRAC
+  description: سهم حجم 1/3 ابتدایی کندل‌های 5m از کل حجم 4h
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: sum(volume_5m in first 1/3 bars) / sum(volume_5m in all bars of 4h)
+  tags:
+  - microstructure
+  - volume_profile
+- name: M5_VOLUME_LATE_FRAC
+  description: سهم حجم 1/3 انتهایی کندل‌های 5m از کل حجم 4h
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: sum(volume_5m in last 1/3 bars) / sum(volume_5m in all bars of 4h)
+  tags:
+  - microstructure
+  - volume_profile
+- name: M5_INTRA_VOLATILITY_PCT
+  description: نوسان نسبی مسیر 5m داخل 4h (مثلاً std بازده 5m)
+  dtype: float
+  origin_level: aggregated_5m_to_4h
+  formula: std(RET_5M within 4h) or (max-min)/open_4h
+  tags:
+  - microstructure
+  - volatility
+- name: RET_5M
+  description: بازده کندل 5 دقیقه‌ای
+  dtype: float
+  origin_level: 5m
+  formula: close/open - 1
+  tags:
+  - return
+- name: DIR_5M
+  description: جهت کندل 5m (RET_UP/RET_DOWN)
+  dtype: categorical
+  origin_level: 5m
+  formula: DIR_5M = 'RET_UP' if close > open else 'RET_DOWN'
+  tags:
+  - direction
+  - label
+- name: BODY_PCT_5M
+  description: نسبت بدنه کندل 5m به رنج آن
+  dtype: float
+  origin_level: 5m
+  formula: abs(close - open) / (high - low + epsilon)
+  tags:
+  - shape
+- name: INTRA_4H_INDEX_5M
+  description: شماره کندل 5m داخل کندل 4h والد (0,1,2,...)
+  dtype: int
+  origin_level: 5m
+  formula: index of 5m bar within its parent 4h bar
+  tags:
+  - microstructure
+  - position_in_parent
+- name: VOL_BUCKET_5M
+  description: باکت‌بندی اندازه حرکت کندل 5m (low/mid/high)
+  dtype: categorical
+  origin_level: 5m
+  formula: discretization of |RET_5M| into {VOL_LOW, VOL_MID, VOL_HIGH}
+  tags:
+  - volatility
+  - bucket
 clusters: []
-
-# ---------------------------------------------------------------------
-# 4. PATTERNS – فعلاً خالی، بعد از اولین دور کشف الگو پر می‌شود
-# ---------------------------------------------------------------------
-patterns: []
-
-# ---------------------------------------------------------------------
-# 5. TRADING_RULES – قوانین معاملاتی مبتنی بر الگوها (هنوز تعریف نشده)
-# ---------------------------------------------------------------------
+patterns:
+  dir_sequence_4h:
+    description: 4h direction sequence patterns discovered automatically.
+    miner:
+      name: auto_dir_sequence_miner_v1
+      window_lengths:
+      - 2
+      - 3
+      - 4
+      - 5
+      min_support: 20
+      data_range:
+        start: '2024-01-01'
+        end: '2025-12-01'
+    items: []
 trading_rules: []
-
-# ---------------------------------------------------------------------
-# 6. RULE_RELATIONS – روابط بین قوانین/الگوها (conflict/confirm/complement)
-# ---------------------------------------------------------------------
 rule_relations: []
-
-# ---------------------------------------------------------------------
-# 7. CROSS_MARKET_PATTERNS – الگوهای مشترک بین بازارها
-#    (در فاز ۲ با ورود داده‌های DXY/ETH/... پر می‌شود)
-# ---------------------------------------------------------------------
 cross_market_patterns: []
-
-# ---------------------------------------------------------------------
-# 8. MARKET_RELATIONS – روابط آماری بین BTC و سایر بازارها
-#    (بعد از اجرای cross_market_analysis پر می‌شود)
-# ---------------------------------------------------------------------
 market_relations: []
-
-# ---------------------------------------------------------------------
-# 9. BACKTESTS – نتایج بک‌تست روی قوانین معاملاتی
-# ---------------------------------------------------------------------
 backtests: []
-
-# ---------------------------------------------------------------------
-# 10. PERFORMANCE_OVER_TIME – عملکرد الگوها در پنجره‌های زمانی مختلف
-# ---------------------------------------------------------------------
 performance_over_time: []
-
-# ---------------------------------------------------------------------
-# 11. STATUS_HISTORY – تاریخچه تغییر وضعیت الگوها
-# ---------------------------------------------------------------------
 status_history: []
-
-# =====================================================================
-# پایان kb/btcusdt_4h_knowledge.yaml نسخه 0.1.0
-# =====================================================================
