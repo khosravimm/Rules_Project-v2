@@ -1,5 +1,5 @@
 import { apiGet } from './client';
-import type { Candle, CandlesResponse, PatternHit, PatternHitsResponse, SymbolPair, Timeframe } from '../types/trading';
+import type { CandlesResponse, PatternHitsResponse, SymbolPair, Timeframe } from '../types/trading';
 
 export function fetchCandles(symbol: SymbolPair, timeframe: Timeframe): Promise<CandlesResponse> {
   const url = `/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}`;

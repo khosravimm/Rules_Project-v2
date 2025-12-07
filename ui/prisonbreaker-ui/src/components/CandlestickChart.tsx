@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
-import {
+import type {
   CandlestickData,
   IChartApi,
   ISeriesApi,
+  ISeriesMarkersPluginApi,
   SeriesMarker,
   Time,
-  createChart,
 } from 'lightweight-charts';
+import { CandlestickSeries, createChart, createSeriesMarkers } from 'lightweight-charts';
 import type { Candle, PatternHit } from '../types/trading';
 
 export interface CandlestickChartProps {
@@ -61,6 +62,7 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
         mode: 0,
       },
     });
-    const series = chart.addCandlestickSeries({
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       wickUpColor: '#26a69a',
@@ -93,6 +95,7 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
     });
     chartRef.current = chart;
     seriesRef.current = series;
+    markersPluginRef.current = createSeriesMarkers(series, []);
 
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -105,6 +108,7 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
 
     return () => {
       ro.disconnect();
+      markersPluginRef.current = null;
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -123,7 +127,11 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
   useEffect(() => {
     if (!seriesRef.current) return;
     const markers = mapMarkers(patternHits);
-    seriesRef.current.setMarkers(markers);
+    if (markersPluginRef.current) {
+      markersPluginRef.current.setMarkers(markers);
+    } else {
+      markersPluginRef.current = createSeriesMarkers(seriesRef.current, markers);
+    }
   }, [patternHits]);
 
   return <div ref={containerRef} style={{ width: '100%', height }} />;
