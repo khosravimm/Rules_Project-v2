@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v2)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      background: #f5f5f7;
+      color: #222;
+      padding: 12px;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      padding: 12px 16px 16px 16px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e1e1e1;
+      margin-bottom: 10px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f0f0ff;
+      color: #333;
+      font-size: 11px;
+    }
+
+    .select,
+    .button-toggle-group {
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .select select {
+      padding: 2px 6px;
+      font-size: 12px;
+    }
+
+    .button-toggle-group button {
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fff;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .button-toggle-group button.active {
+      background: #222;
+      color: #fff;
+      border-color: #222;
+    }
+
+    /* Layout */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 12px;
+      margin-top: 10px;
+      min-height: 540px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      border-radius: 8px;
+      background: #fafafa;
+      border: 1px solid #e6e6e6;
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed #e0e0e0;
+    }
+
+    .sidebar-section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-row label {
+      font-size: 12px;
+      color: #333;
+    }
+
+    .checkbox-group,
+    .radio-group-inline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-group label,
+    .radio-group-inline label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .slider {
+      width: 100%;
+      margin: 4px 0;
+    }
+
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      font-size: 11px;
+      margin: 2px 2px 2px 0;
+    }
+
+    .pill-id {
+      font-weight: 500;
+      margin-right: 4px;
+    }
+
+    .tag {
+      display: inline-flex;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: #eef6ff;
+      color: #265d97;
+    }
+
+    .select-multi {
+      width: 100%;
+      font-size: 11px;
+      padding: 4px;
+    }
+
+    /* Content */
+    .content-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .charts-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chart-box {
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e1e1e1;
+      padding: 8px 10px 10px 10px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .chart-subtitle {
+      font-size: 11px;
+      color: #777;
+    }
+
+    .chart-placeholder {
+      height: 240px; /* بزرگ‌تر شد */
+      border-radius: 6px;
+      background: repeating-linear-gradient(
+        -45deg,
+        #fafafa,
+        #fafafa 8px,
+        #f0f0f0 8px,
+        #f0f0f0 16px
+      );
+      border: 1px dashed #cccccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #777;
+      font-size: 12px;
+      text-align: center;
+      padding: 0 16px;
+    }
+
+    /* Info Panel */
+    .info-panel {
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e1e1e1;
+      padding: 8px 10px 10px 10px;
+    }
+
+    .info-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .info-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .info-tabs {
+      display: inline-flex;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .info-tabs button {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .info-tabs button.active {
+      background: #222;
+      color: #fff;
+      border-color: #222;
+    }
+
+    .info-body {
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .info-section {
+      border-radius: 6px;
+      border: 1px dashed #e3e3e3;
+      padding: 6px 8px;
+      background: #fafafa;
+    }
+
+    .info-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .info-section-subtitle {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    thead {
+      background: #f5f5f7;
+    }
+
+    th, td {
+      padding: 4px 6px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Quick responsiveness */
+    @media (max-width: 1000px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        order: -1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v2)</div>
+      <div class="header-subtitle">4h / 5m · Level-1 Patterns · Layout skeleton with full controls</div>
+    </div>
+    <div class="header-controls">
+      <span class="badge">
+        <strong>Market:</strong> BTCUSDT
+      </span>
+      <div class="select">
+        <span>Timeframe:</span>
+        <select>
+          <option>4h</option>
+          <option>5m</option>
+        </select>
+      </div>
+      <div class="button-toggle-group">
+        <span>View:</span>
+        <button class="active">Pattern</button>
+        <button>Candle</button>
+        <button>Family</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Timeframe -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Timeframe</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" checked /> 4h</label>
+          <label><input type="checkbox" /> 5m</label>
+        </div>
+      </div>
+
+      <!-- Pattern Type -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Pattern type (multi-select)</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" checked /> sequence</label>
+          <label><input type="checkbox" /> candle_shape</label>
+          <label><input type="checkbox" /> feature_rule</label>
+        </div>
+      </div>
+
+      <!-- Window -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Window size</div>
+        <div class="sidebar-row">
+          <label>2 → 11</label>
+          <span>current: 5</span>
+        </div>
+        <input class="slider" type="range" min="2" max="11" value="5" />
+        <div class="slider-label-row">
+          <span>min 2</span>
+          <span>max 11</span>
+        </div>
+      </div>
+
+      <!-- Pattern metrics filters -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Pattern metrics filters</div>
+
+        <div class="sidebar-row">
+          <label>Lift ≥</label>
+          <span>1.00</span>
+        </div>
+        <input class="slider" type="range" min="1.00" max="2.00" step="0.01" value="1.00" />
+        <div class="slider-label-row">
+          <span>1.00</span><span>2.00</span>
+        </div>
+
+        <div class="sidebar-row" style="margin-top:6px;">
+          <label>Stability ≥</label>
+          <span>0.80</span>
+        </div>
+        <input class="slider" type="range" min="0.50" max="1.00" step="0.01" value="0.80" />
+        <div class="slider-label-row">
+          <span>0.50</span><span>1.00</span>
+        </div>
+
+        <div class="sidebar-row" style="margin-top:6px;">
+          <label>Support ≥</label>
+          <span>20</span>
+        </div>
+        <input class="slider" type="range" min="5" max="300" step="1" value="20" />
+        <div class="slider-label-row">
+          <span>5</span><span>300</span>
+        </div>
+      </div>
+
+      <!-- Strength filter -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Strength (families)</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" checked /> weak</label>
+          <label><input type="checkbox" checked /> medium</label>
+          <label><input type="checkbox" checked /> strong</label>
+        </div>
+      </div>
+
+      <!-- Overlay controls -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Overlays</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" /> Show zones</label>
+        </div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" /> Show markers</label>
+        </div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" /> Show density heatmap</label>
+        </div>
+        <div style="margin-top:6px;">
+          <div class="sidebar-row">
+            <label>Max overlays (top N hits)</label>
+            <span>300</span>
+          </div>
+          <input class="slider" type="range" min="50" max="1000" step="50" value="300" />
+          <div class="slider-label-row">
+            <span>50</span><span>1000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pattern & Family selection -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Pattern selection</div>
+        <div class="sidebar-row">
+          <label>pattern_id (multi)</label>
+        </div>
+        <select multiple class="select-multi" size="4">
+          <option>seq_4h_w3_021</option>
+          <option>seq_4h_w4_110</option>
+          <option>cs_4h_07</option>
+          <option>seq_5m_w5_304</option>
+          <option>fr_5m_12</option>
+        </select>
+
+        <div class="sidebar-row" style="margin-top:6px;">
+          <label>family_id (multi)</label>
+        </div>
+        <select multiple class="select-multi" size="3">
+          <option>fam_4h_weak_01</option>
+          <option>fam_4h_strong_07</option>
+          <option>fam_5m_weak_12</option>
+        </select>
+
+        <div style="margin-top:6px;">
+          <span style="font-size:11px; font-weight:600;">Mode:</span>
+          <div class="radio-group-inline" style="margin-top:2px;">
+            <label><input type="radio" name="mode_allow_block" checked /> Allow list</label>
+            <label><input type="radio" name="mode_allow_block" /> Block list</label>
+          </div>
+        </div>
+
+        <div style="margin-top:6px;">
+          <div class="sidebar-section-title" style="text-transform:none; letter-spacing:0; font-size:11px; margin-bottom:2px;">
+            Active patterns (max 5 on load)
+          </div>
+          <div class="pill">
+            <span class="pill-id">seq_4h_w3_021</span>
+            <span class="tag">w=3</span>
+          </div>
+          <div class="pill">
+            <span class="pill-id">seq_4h_w4_110</span>
+            <span class="tag">w=4</span>
+          </div>
+          <div class="pill">
+            <span class="pill-id">cs_4h_07</span>
+            <span class="tag">shape</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content-area">
+      <!-- Charts -->
+      <div class="charts-wrapper">
+        <!-- 4h Chart -->
+        <section class="chart-box">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">BTCUSDT – 4H Candles</div>
+              <div class="chart-subtitle">
+                Initial load: ~1 week · overlays OFF · parent chart
+              </div>
+            </div>
+            <div class="chart-subtitle">4h timeframe</div>
+          </div>
+          <div class="chart-placeholder">
+            4H Chart Placeholder<br />
+            (candles + pattern zones + answer markers will be rendered here by Dash/Plotly)
+          </div>
+        </section>
+
+        <!-- 5m Chart -->
+        <section class="chart-box">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">BTCUSDT – 5M Candles</div>
+              <div class="chart-subtitle">
+                Synced zoom with 4H · detail region · child chart
+              </div>
+            </div>
+            <div class="chart-subtitle">5m timeframe</div>
+          </div>
+          <div class="chart-placeholder">
+            5M Chart Placeholder<br />
+            (micro-candles + local hits for visible 4h window)
+          </div>
+        </section>
+      </div>
+
+      <!-- Info Panel -->
+      <section class="info-panel">
+        <div class="info-header">
+          <div class="info-title">Info Panel – Pattern / Candle / Family</div>
+          <div class="info-tabs">
+            <button class="active">Patterns</button>
+            <button>Candle</button>
+            <button>Family</button>
+          </div>
+        </div>
+        <div class="info-body">
+          <!-- Pattern-centric section -->
+          <div class="info-section">
+            <div class="info-section-title">Pattern View (pattern-centric)</div>
+            <div class="info-section-subtitle">
+              Visible pattern hits (sample rows, limited to 5 on initial load). Columns include family & strength.
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>timeframe</th>
+                  <th>pattern_id</th>
+                  <th>w</th>
+                  <th>type</th>
+                  <th>role</th>
+                  <th>support</th>
+                  <th>lift</th>
+                  <th>stability</th>
+                  <th>score</th>
+                  <th>family_id</th>
+                  <th>strength</th>
+                  <th>start_time</th>
+                  <th>ans_time</th>
+                  <th>result_next_n</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>4h</td>
+                  <td>seq_4h_w3_021</td>
+                  <td>3</td>
+                  <td>sequence</td>
+                  <td>answer</td>
+                  <td>129</td>
+                  <td>1.07</td>
+                  <td>0.96</td>
+                  <td>3.12</td>
+                  <td>fam_4h_strong_07</td>
+                  <td>strong</td>
+                  <td>2025-11-16 08:00</td>
+                  <td>2025-11-17 00:00</td>
+                  <td>+3 bars up</td>
+                </tr>
+                <tr>
+                  <td>4h</td>
+                  <td>seq_4h_w4_110</td>
+                  <td>4</td>
+                  <td>sequence</td>
+                  <td>window</td>
+                  <td>87</td>
+                  <td>1.03</td>
+                  <td>0.91</td>
+                  <td>2.45</td>
+                  <td>fam_4h_weak_01</td>
+                  <td>weak</td>
+                  <td>2025-11-17 04:00</td>
+                  <td>2025-11-18 00:00</td>
+                  <td>-1 bar</td>
+                </tr>
+                <tr>
+                  <td>4h</td>
+                  <td>cs_4h_07</td>
+                  <td>-</td>
+                  <td>candle_shape</td>
+                  <td>answer</td>
+                  <td>52</td>
+                  <td>1.11</td>
+                  <td>0.83</td>
+                  <td>2.02</td>
+                  <td>fam_4h_medium_03</td>
+                  <td>medium</td>
+                  <td>2025-11-18 08:00</td>
+                  <td>2025-11-18 12:00</td>
+                  <td>+1 bar up</td>
+                </tr>
+                <tr>
+                  <td>5m</td>
+                  <td>seq_5m_w5_304</td>
+                  <td>5</td>
+                  <td>sequence</td>
+                  <td>window</td>
+                  <td>210</td>
+                  <td>1.04</td>
+                  <td>0.89</td>
+                  <td>1.88</td>
+                  <td>fam_5m_weak_12</td>
+                  <td>weak</td>
+                  <td>2025-11-18 08:25</td>
+                  <td>2025-11-18 08:50</td>
+                  <td>flat</td>
+                </tr>
+                <tr>
+                  <td>5m</td>
+                  <td>fr_5m_12</td>
+                  <td>-</td>
+                  <td>feature_rule</td>
+                  <td>answer</td>
+                  <td>64</td>
+                  <td>1.09</td>
+                  <td>0.92</td>
+                  <td>2.15</td>
+                  <td>fam_5m_medium_05</td>
+                  <td>medium</td>
+                  <td>2025-11-18 09:05</td>
+                  <td>2025-11-18 09:25</td>
+                  <td>+2 bars up</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Candle-centric section -->
+          <div class="info-section">
+            <div class="info-section-title">Candle View (candle-centric)</div>
+            <div class="info-section-subtitle">
+              Example of what appears when a single candle is clicked on the chart (summary + patterns touching that candle).
+            </div>
+            <div style="font-size:11px; margin-bottom:4px;">
+              <strong>Candle @ 2025-11-17 08:00</strong> · O: 101,800 · H: 102,300 · L: 101,250 · C: 102,000<br/>
+              Patterns affecting: <strong>12</strong> &nbsp;|&nbsp;
+              Answer patterns: <strong>3</strong> &nbsp;|&nbsp;
+              Window patterns: <strong>9</strong>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>pattern_id</th>
+                  <th>timeframe</th>
+                  <th>w</th>
+                  <th>type</th>
+                  <th>role</th>
+                  <th>family_id</th>
+                  <th>strength</th>
+                  <th>support</th>
+                  <th>lift</th>
+                  <th>stability</th>
+                  <th>score</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>seq_4h_w3_021</td>
+                  <td>4h</td>
+                  <td>3</td>
+                  <td>sequence</td>
+                  <td>answer_candle</td>
+                  <td>fam_4h_strong_07</td>
+                  <td>strong</td>
+                  <td>129</td>
+                  <td>1.07</td>
+                  <td>0.96</td>
+                  <td>3.12</td>
+                </tr>
+                <tr>
+                  <td>seq_4h_w4_110</td>
+                  <td>4h</td>
+                  <td>4</td>
+                  <td>sequence</td>
+                  <td>part_of_window</td>
+                  <td>fam_4h_weak_01</td>
+                  <td>weak</td>
+                  <td>87</td>
+                  <td>1.03</td>
+                  <td>0.91</td>
+                  <td>2.45</td>
+                </tr>
+                <tr>
+                  <td>cs_4h_07</td>
+                  <td>4h</td>
+                  <td>-</td>
+                  <td>candle_shape</td>
+                  <td>answer_candle</td>
+                  <td>fam_4h_medium_03</td>
+                  <td>medium</td>
+                  <td>52</td>
+                  <td>1.11</td>
+                  <td>0.83</td>
+                  <td>2.02</td>
+                </tr>
+                <tr>
+                  <td>seq_5m_w5_304</td>
+                  <td>5m</td>
+                  <td>5</td>
+                  <td>sequence</td>
+                  <td>inside_5m_window</td>
+                  <td>fam_5m_weak_12</td>
+                  <td>weak</td>
+                  <td>210</td>
+                  <td>1.04</td>
+                  <td>0.89</td>
+                  <td>1.88</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Family View section -->
+          <div class="info-section">
+            <div class="info-section-title">Family View (family-centric)</div>
+            <div class="info-section-subtitle">
+              Aggregated view for a selected family (e.g. strong 4h family). Later can be split into Hits / Patterns / Stats tabs.
+            </div>
+            <div style="font-size:11px; margin-bottom:4px;">
+              <strong>Family:</strong> fam_4h_strong_07 &nbsp;|&nbsp;
+              <strong>Strength:</strong> strong &nbsp;|&nbsp;
+              <strong>Patterns in family:</strong> 12 &nbsp;|&nbsp;
+              <strong>Total hits (visible window):</strong> 231
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>pattern_id</th>
+                  <th>timeframe</th>
+                  <th>w</th>
+                  <th>type</th>
+                  <th>support</th>
+                  <th>lift</th>
+                  <th>stability</th>
+                  <th>score</th>
+                  <th>hits_visible</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>seq_4h_w3_021</td>
+                  <td>4h</td>
+                  <td>3</td>
+                  <td>sequence</td>
+                  <td>129</td>
+                  <td>1.07</td>
+                  <td>0.96</td>
+                  <td>3.12</td>
+                  <td>48</td>
+                </tr>
+                <tr>
+                  <td>seq_4h_w4_155</td>
+                  <td>4h</td>
+                  <td>4</td>
+                  <td>sequence</td>
+                  <td>102</td>
+                  <td>1.05</td>
+                  <td>0.93</td>
+                  <td>2.78</td>
+                  <td>63</td>
+                </tr>
+                <tr>
+                  <td>fr_4h_09</td>
+                  <td>4h</td>
+                  <td>-</td>
+                  <td>feature_rule</td>
+                  <td>75</td>
+                  <td>1.10</td>
+                  <td>0.90</td>
+                  <td>2.45</td>
+                  <td>37</td>
+                </tr>
+                <tr>
+                  <td>cs_4h_07</td>
+                  <td>4h</td>
+                  <td>-</td>
+                  <td>candle_shape</td>
+                  <td>52</td>
+                  <td>1.11</td>
+                  <td>0.83</td>
+                  <td>2.02</td>
+                  <td>28</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+</body>
+</html>
