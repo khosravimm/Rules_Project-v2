@@ -10,10 +10,13 @@ import type {
 import { CandlestickSeries, createChart, createSeriesMarkers } from 'lightweight-charts';
 import type { Candle, PatternHit } from '../types/trading';
 
+export type ChartTheme = 'dark' | 'light';
+
 export interface CandlestickChartProps {
   candles: Candle[];
   patternHits?: PatternHit[];
   height?: number;
+  theme?: ChartTheme;
 }
 
 function normalizeTime(value: number | string): Time {
@@ -58,7 +61,7 @@ function mapMarkers(hits: PatternHit[] = []): SeriesMarker<Time>[] {
   });
 }
 
-export function CandlestickChart({ candles, patternHits = [], height = 500 }: CandlestickChartProps) {
+export function CandlestickChart({ candles, patternHits = [], height = 500, theme = 'dark' }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -67,30 +70,31 @@ export function CandlestickChart({ candles, patternHits = [], height = 500 }: Ca
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const isDark = theme === 'dark';
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: '#0b0e11' },
-        textColor: '#d1d4dc',
+        background: { color: isDark ? '#0b0e11' : '#f7f8fa' },
+        textColor: isDark ? '#d1d4dc' : '#1f2937',
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.05)' },
-        horzLines: { color: 'rgba(255,255,255,0.05)' },
+        vertLines: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)' },
+        horzLines: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)' },
       },
       rightPriceScale: {
-        borderColor: 'rgba(197,203,206,0.4)',
+        borderColor: isDark ? 'rgba(197,203,206,0.4)' : 'rgba(0,0,0,0.1)',
       },
       timeScale: {
-        borderColor: 'rgba(197,203,206,0.4)',
+        borderColor: isDark ? 'rgba(197,203,206,0.4)' : 'rgba(0,0,0,0.1)',
       },
       crosshair: {
         mode: 0,
       },
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      upColor: isDark ? '#26a69a' : '#0f9d58',
+      downColor: isDark ? '#ef5350' : '#d93025',
+      wickUpColor: isDark ? '#26a69a' : '#0f9d58',
+      wickDownColor: isDark ? '#ef5350' : '#d93025',
       borderVisible: false,
     });
     chartRef.current = chart;
