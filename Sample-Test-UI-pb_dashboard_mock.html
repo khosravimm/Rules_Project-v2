@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v2)</title>
+  <title>PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v3)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -175,6 +175,36 @@
       margin-top: 2px;
     }
 
+    .metric-block {
+      margin-bottom: 8px;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .range-label {
+      width: 30px;
+      font-size: 11px;
+      color: #555;
+      text-align: right;
+    }
+
+    .range-value {
+      width: 36px;
+      font-size: 11px;
+      color: #555;
+      text-align: left;
+    }
+
+    .range-row .slider {
+      flex: 1;
+      margin: 0;
+    }
+
     .pill {
       display: inline-flex;
       align-items: center;
@@ -246,7 +276,7 @@
     }
 
     .chart-placeholder {
-      height: 240px; /* بزرگ‌تر شد */
+      height: 240px;
       border-radius: 6px;
       background: repeating-linear-gradient(
         -45deg,
@@ -374,8 +404,8 @@
   <!-- Header -->
   <div class="header">
     <div>
-      <div class="header-title">PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v2)</div>
-      <div class="header-subtitle">4h / 5m · Level-1 Patterns · Layout skeleton with full controls</div>
+      <div class="header-title">PrisonBreaker – BTCUSDT Pattern Dashboard (Mock v3)</div>
+      <div class="header-subtitle">4h / 5m · Level-1 Patterns · Layout skeleton with full controls (range filters)</div>
     </div>
     <div class="header-controls">
       <span class="badge">
@@ -438,31 +468,58 @@
       <div class="sidebar-section">
         <div class="sidebar-section-title">Pattern metrics filters</div>
 
-        <div class="sidebar-row">
-          <label>Lift ≥</label>
-          <span>1.00</span>
-        </div>
-        <input class="slider" type="range" min="1.00" max="2.00" step="0.01" value="1.00" />
-        <div class="slider-label-row">
-          <span>1.00</span><span>2.00</span>
+        <!-- Lift -->
+        <div class="metric-block">
+          <div class="sidebar-row">
+            <label>Lift range</label>
+            <span>1.00 – 2.00</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">min</span>
+            <input class="slider" type="range" min="1.00" max="2.00" step="0.01" value="1.00" />
+            <span class="range-value">1.00</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">max</span>
+            <input class="slider" type="range" min="1.00" max="2.00" step="0.01" value="2.00" />
+            <span class="range-value">2.00</span>
+          </div>
         </div>
 
-        <div class="sidebar-row" style="margin-top:6px;">
-          <label>Stability ≥</label>
-          <span>0.80</span>
-        </div>
-        <input class="slider" type="range" min="0.50" max="1.00" step="0.01" value="0.80" />
-        <div class="slider-label-row">
-          <span>0.50</span><span>1.00</span>
+        <!-- Stability -->
+        <div class="metric-block">
+          <div class="sidebar-row">
+            <label>Stability range</label>
+            <span>0.50 – 1.00</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">min</span>
+            <input class="slider" type="range" min="0.50" max="1.00" step="0.01" value="0.80" />
+            <span class="range-value">0.80</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">max</span>
+            <input class="slider" type="range" min="0.50" max="1.00" step="0.01" value="1.00" />
+            <span class="range-value">1.00</span>
+          </div>
         </div>
 
-        <div class="sidebar-row" style="margin-top:6px;">
-          <label>Support ≥</label>
-          <span>20</span>
-        </div>
-        <input class="slider" type="range" min="5" max="300" step="1" value="20" />
-        <div class="slider-label-row">
-          <span>5</span><span>300</span>
+        <!-- Support -->
+        <div class="metric-block">
+          <div class="sidebar-row">
+            <label>Support range</label>
+            <span>5 – 300</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">min</span>
+            <input class="slider" type="range" min="5" max="300" step="1" value="20" />
+            <span class="range-value">20</span>
+          </div>
+          <div class="range-row">
+            <span class="range-label">max</span>
+            <input class="slider" type="range" min="5" max="300" step="1" value="300" />
+            <span class="range-value">300</span>
+          </div>
         </div>
       </div>
 
@@ -476,7 +533,7 @@
         </div>
       </div>
 
-      <!-- Overlay controls -->
+      <!-- Overlays -->
       <div class="sidebar-section">
         <div class="sidebar-section-title">Overlays</div>
         <div class="checkbox-group">
@@ -553,9 +610,8 @@
 
     <!-- Content -->
     <main class="content-area">
-      <!-- Charts -->
       <div class="charts-wrapper">
-        <!-- 4h Chart -->
+        <!-- 4h -->
         <section class="chart-box">
           <div class="chart-header">
             <div>
@@ -572,7 +628,7 @@
           </div>
         </section>
 
-        <!-- 5m Chart -->
+        <!-- 5m -->
         <section class="chart-box">
           <div class="chart-header">
             <div>
@@ -590,7 +646,7 @@
         </section>
       </div>
 
-      <!-- Info Panel -->
+      <!-- Info Panel (همان نسخه v2؛ تغییری نکرده) -->
       <section class="info-panel">
         <div class="info-header">
           <div class="info-title">Info Panel – Pattern / Candle / Family</div>
@@ -601,7 +657,7 @@
           </div>
         </div>
         <div class="info-body">
-          <!-- Pattern-centric section -->
+          <!-- Pattern View -->
           <div class="info-section">
             <div class="info-section-title">Pattern View (pattern-centric)</div>
             <div class="info-section-subtitle">
@@ -711,7 +767,7 @@
             </table>
           </div>
 
-          <!-- Candle-centric section -->
+          <!-- Candle View -->
           <div class="info-section">
             <div class="info-section-title">Candle View (candle-centric)</div>
             <div class="info-section-subtitle">
@@ -796,7 +852,7 @@
             </table>
           </div>
 
-          <!-- Family View section -->
+          <!-- Family View -->
           <div class="info-section">
             <div class="info-section-title">Family View (family-centric)</div>
             <div class="info-section-subtitle">
