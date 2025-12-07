@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 import math
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+import pyarrow.dataset as ds
 
 import dash
 from dash import Dash, dcc, html, dash_table, Input, Output, State
@@ -13,6 +14,10 @@ import plotly.graph_objects as go
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
+HITS_PART_DIR = {
+    "4h": DATA_DIR / "pattern_hits_4h_level1_partitioned",
+    "5m": DATA_DIR / "pattern_hits_5m_level1_partitioned",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -95,16 +100,14 @@ def load_families(timeframe: str) -> Optional[pd.DataFrame]:
 TIMEFRAMES = ["4h", "5m"]
 CANDLES: Dict[str, pd.DataFrame] = {}
 PATTERNS: Dict[str, pd.DataFrame] = {}
-HITS: Dict[str, pd.DataFrame] = {}
 FAMILIES: Dict[str, Optional[pd.DataFrame]] = {}
 
 for tf in TIMEFRAMES:
     CANDLES[tf] = load_candles(tf)
     PATTERNS[tf] = load_patterns(tf)
-    HITS[tf] = load_pattern_hits(tf)
     FAMILIES[tf] = load_families(tf)
     print(
-        f"[LOAD] timeframe={tf} candles={len(CANDLES[tf])} patterns={len(PATTERNS[tf])} hits={len(HITS[tf])}"
+        f"[LOAD] timeframe={tf} candles={len(CANDLES[tf])} patterns={len(PATTERNS[tf])}"
     )
 
 def _default_range() -> List[str]:
@@ -113,18 +116,27 @@ def _default_range() -> List[str]:
     if df.empty:
         return []
     end = df[time_col].iloc[-1]
-    start_idx = max(len(df) - 300, 0)
+    start_idx = max(len(df) - 42, 0)  # ~7 days of 4h candles
     start = df[time_col].iloc[start_idx]
     return [start.isoformat(), end.isoformat()]
 
 
+def get_initial_time_range_4h() -> Tuple[pd.Timestamp, pd.Timestamp]:
+    df = CANDLES["4h"]
+    time_col = df["time_col"].iloc[0]
+    if df.empty:
+        now = pd.Timestamp.utcnow()
+        return now - pd.Timedelta(days=7), now
+    end = pd.to_datetime(df[time_col].iloc[-1])
+    start_idx = max(len(df) - 42, 0)
+    start = pd.to_datetime(df[time_col].iloc[start_idx])
+    return start, end
+
+
 DEFAULT_X_RANGE = _default_range()
-SUP_MAX = int(
-    max((h["support"].max() for h in HITS.values() if not h.empty), default=1000)
-)
-LIFT_MAX = float(
-    max((h["lift"].max() for h in HITS.values() if not h.empty), default=5.0)
-)
+# Conservative slider maxima
+SUP_MAX = 1000
+LIFT_MAX = 5.0
 LIFT_MAX_SLIDER = max(5.0, math.ceil(LIFT_MAX))
 SUP_MAX_SLIDER = max(1000, int(math.ceil(SUP_MAX / 100.0) * 100))
 FAMILY_AVAILABLE = any(f is not None and not f.empty for f in FAMILIES.values())
@@ -138,10 +150,24 @@ PTYPE_COLORS = {
     "candle_shape": "rgba(250,90,90,0.25)",
     "feature_rule": "rgba(0,200,83,0.25)",
 }
+STRENGTH_COLORS = {
+    "strong": "rgba(255,193,7,0.25)",
+    "medium": "rgba(0,184,148,0.25)",
+    "weak": "rgba(116,185,255,0.25)",
+}
+HARD_HIT_CAP = 1000
+DEFAULT_MAX_HITS = 100
+TABLE_ROW_CAP = 100
+DRAW_HARD_CAP = 300
 
 
 def make_candle_fig(tf: str, x_range: Optional[Tuple[str, str]] = None) -> go.Figure:
     df = CANDLES[tf]
+    if x_range and len(x_range) == 2:
+        time_col_local = df["time_col"].iloc[0]
+        start_ts = pd.to_datetime(x_range[0])
+        end_ts = pd.to_datetime(x_range[1])
+        df = df[(df[time_col_local] >= start_ts) & (df[time_col_local] <= end_ts)]
     time_col = df["time_col"].iloc[0]
     fig = go.Figure(
         data=[
@@ -168,6 +194,174 @@ def make_candle_fig(tf: str, x_range: Optional[Tuple[str, str]] = None) -> go.Fi
     if x_range:
         fig.update_xaxes(range=x_range)
     return fig
+
+
+# ---------------------------------------------------------------------------
+# Hit filtering and limiting helpers
+# ---------------------------------------------------------------------------
+def _month_range(start: pd.Timestamp, end: pd.Timestamp) -> List[Tuple[int, int]]:
+    months = []
+    cur = pd.Timestamp(year=start.year, month=start.month, day=1, tz=start.tz)
+    end_anchor = pd.Timestamp(year=end.year, month=end.month, day=1, tz=end.tz)
+    while cur <= end_anchor:
+        months.append((cur.year, cur.month))
+        cur = cur + pd.DateOffset(months=1)
+    return months
+
+
+def load_hits_for_timerange(
+    timeframe: str,
+    start_time,
+    end_time,
+    base_filters: dict,
+) -> pd.DataFrame:
+    """
+    Lazily load hits from partitioned parquet for the timeframe and time window.
+    """
+    part_dir = HITS_PART_DIR[timeframe]
+    if not part_dir.exists():
+        print(f"[hits-load] missing partition dir for {timeframe}: {part_dir}")
+        return pd.DataFrame()
+
+    start_ts = pd.to_datetime(start_time)
+    end_ts = pd.to_datetime(end_time)
+    ym = _month_range(start_ts, end_ts)
+    years = sorted({y for y, _ in ym})
+    months = sorted({m for _, m in ym})
+
+    dataset = ds.dataset(part_dir, format="parquet")
+    expr = (ds.field("year").isin(years)) & (ds.field("month").isin(months))
+    table = dataset.to_table(filter=expr)
+    df = table.to_pandas()
+    if df.empty:
+        print(f"[hits-load] timeframe={timeframe} range=({start_ts},{end_ts}) -> loaded=0 rows")
+        return df
+    df["answer_time"] = pd.to_datetime(df["answer_time"], utc=True, errors="coerce")
+    df["start_time"] = pd.to_datetime(df["start_time"], utc=True, errors="coerce")
+    df["end_time"] = pd.to_datetime(df["end_time"], utc=True, errors="coerce")
+    df = df[(df["answer_time"] >= start_ts) & (df["answer_time"] <= end_ts) | ((df["start_time"] <= end_ts) & (df["end_time"] >= start_ts))]
+    # Apply static filters
+    df = apply_static_filters_to_hits(df, base_filters)
+    print(f"[hits-load] timeframe={timeframe} range=({start_ts},{end_ts}) -> loaded={len(df)} rows")
+    return df
+
+
+def apply_static_filters_to_hits(hits_df: pd.DataFrame, base_filters: dict) -> pd.DataFrame:
+    if hits_df.empty:
+        return hits_df
+    df = hits_df
+    pt = base_filters.get("pattern_types", [])
+    ws_min, ws_max = base_filters.get("ws_range", (2, 11))
+    lift_min, lift_max = base_filters.get("lift_range", (0.0, 10.0))
+    stab_min, stab_max = base_filters.get("stab_range", (0.0, 1.0))
+    sup_min, sup_max = base_filters.get("sup_range", (0, 1_000_000))
+    allowlist = base_filters.get("allowlist", True)
+    pattern_ids = base_filters.get("pattern_ids", [])
+    family_ids = base_filters.get("family_ids", [])
+    view_mode = base_filters.get("view_mode", "pattern")
+
+    if pt:
+        df = df[df["pattern_type"].isin(pt)]
+    df = df[(df["window_size"] >= ws_min) & (df["window_size"] <= ws_max)]
+    df = df[(df["lift"] >= lift_min) & (df["lift"] <= lift_max)]
+    df = df[(df["stability"] >= stab_min) & (df["stability"] <= stab_max)]
+    df = df[(df["support"] >= sup_min) & (df["support"] <= sup_max)]
+
+    if view_mode == "family":
+        if family_ids:
+            df = df[df["family_id"].isin(family_ids)]
+        else:
+            return df.iloc[0:0]
+    else:
+        if pattern_ids:
+            if allowlist:
+                df = df[df["pattern_id"].isin(pattern_ids)]
+            else:
+                df = df[~df["pattern_id"].isin(pattern_ids)]
+        if family_ids:
+            df = df[df["family_id"].isin(family_ids)]
+
+    return df
+
+
+def filter_hits_for_time_range(
+    hits_df: pd.DataFrame,
+    start_time,
+    end_time,
+) -> pd.DataFrame:
+    if hits_df.empty:
+        return hits_df
+    start_ts = pd.to_datetime(start_time)
+    end_ts = pd.to_datetime(end_time)
+    mask = (hits_df["end_time"] >= start_ts) & (hits_df["start_time"] <= end_ts)
+    return hits_df[mask]
+
+
+def limit_hits_for_render(hits_df: pd.DataFrame, max_hits: Optional[int]) -> pd.DataFrame:
+    if hits_df.empty:
+        return hits_df
+    limit = max_hits if max_hits is not None else DEFAULT_MAX_HITS
+    if limit <= 0 or limit > DRAW_HARD_CAP:
+        limit = DRAW_HARD_CAP
+    sort_cols = [c for c in ["score", "support", "stability"] if c in hits_df.columns]
+    if sort_cols:
+        hits_df = hits_df.sort_values(sort_cols, ascending=[False] * len(sort_cols))
+    return hits_df.head(limit)
+
+
+def build_hit_shapes_for_chart(
+    hits_df: pd.DataFrame,
+    y_min: float,
+    y_max: float,
+    color_mode: str = "pattern_type",
+) -> Tuple[List[dict], List[go.Scatter]]:
+    if hits_df.empty:
+        return [], []
+    shapes: List[dict] = []
+    marker_x: List[pd.Timestamp] = []
+    marker_y: List[float] = []
+    marker_text: List[str] = []
+
+    for _, row in hits_df.iterrows():
+        if color_mode == "strength" and isinstance(row.get("strength"), str):
+            color = STRENGTH_COLORS.get(str(row["strength"]).lower(), "rgba(200,200,200,0.25)")
+        elif color_mode == "family_id" and pd.notna(row.get("family_id")):
+            color = "rgba(156, 136, 255, 0.22)"
+        else:
+            color = PTYPE_COLORS.get(row["pattern_type"], "rgba(200,200,200,0.25)")
+        shapes.append(
+            {
+                "type": "rect",
+                "xref": "x",
+                "yref": "y",
+                "x0": row["start_time"],
+                "x1": row["end_time"],
+                "y0": y_min,
+                "y1": y_max,
+                "fillcolor": color,
+                "line": {"width": 0},
+                "opacity": 0.25,
+            }
+        )
+        marker_x.append(row["answer_time"])
+        marker_text.append(
+            f"{row['pattern_type']} w={row['window_size']} score={row.get('score', np.nan):.2f} id={row['pattern_id']}"
+        )
+
+    price_series = CANDLES[hits_df.iloc[0]["timeframe"]]
+    time_col = price_series["time_col"].iloc[0]
+    price_map = dict(zip(price_series[time_col], price_series["close"]))
+    marker_y = [price_map.get(ts, np.nan) for ts in marker_x]
+    marker_trace = go.Scatter(
+        x=marker_x,
+        y=marker_y,
+        mode="markers",
+        marker=dict(color="yellow", size=6, symbol="triangle-up"),
+        name="pattern hits",
+        text=marker_text,
+        hoverinfo="text",
+    )
+    return shapes, [marker_trace]
 
 
 def hits_to_shapes_and_markers(
@@ -295,10 +489,12 @@ def hits_table_columns() -> List[dict]:
 
 def pattern_dropdown_options() -> List[dict]:
     opts: List[dict] = []
+    TOP_N = 100
     for tf in TIMEFRAMES:
         df = PATTERNS[tf]
-        for _, row in df.iterrows():
-            label = f"{tf} | w={int(row['window_size'])} | {row['pattern_type']} | sup={row['support']} | id={row['pattern_id']}"
+        df_sorted = df.sort_values("score", ascending=False).head(TOP_N) if "score" in df.columns else df.head(TOP_N)
+        for _, row in df_sorted.iterrows():
+            label = f"{tf} | w={int(row['window_size'])} | {row['pattern_type']} | sup={row['support']} | id={row['pattern_id']} (top)"
             opts.append({"label": label, "value": row["pattern_id"]})
     return opts
 
@@ -325,7 +521,7 @@ app.title = "PrisonBreaker – BTCUSDT Pattern Viewer (Level-1)"
 
 app.layout = html.Div(
     [
-        html.H3("PrisonBreaker – BTCUSDT Pattern Viewer (Level-1)", style={"textAlign": "center"}),
+        html.H3("PrisonBreaker - BTCUSDT Pattern Viewer (Level-1)", style={"textAlign": "center"}),
         html.Div(
             [
                 # Left rail
@@ -335,7 +531,7 @@ app.layout = html.Div(
                         dcc.Checklist(
                             id="tf-check",
                             options=[{"label": "4h", "value": "4h"}, {"label": "5m", "value": "5m"}],
-                            value=["4h", "5m"],
+                            value=["4h"],  # only 4h selected by default
                             inline=True,
                         ),
                         html.H5("View mode"),
@@ -412,7 +608,7 @@ app.layout = html.Div(
                         dcc.Checklist(
                             id="overlay-enable",
                             options=[{"label": "Show pattern overlays", "value": "on"}],
-                            value=["on"],
+                            value=[],  # off by default
                         ),
                         html.Label("Max hits to draw per timeframe (visible range)"),
                         dcc.Slider(
@@ -420,8 +616,8 @@ app.layout = html.Div(
                             min=0,
                             max=2000,
                             step=50,
-                            value=500,
-                            marks={0: "0", 500: "500", 1000: "1000", 2000: "2000"},
+                            value=100,
+                            marks={0: "0", 100: "100", 300: "300", 500: "500", 1000: "1000", 2000: "2000"},
                         ),
                         html.Div(id="status-text", style={"marginTop": "12px", "fontSize": "12px", "color": "#555"}),
                     ],
@@ -517,63 +713,93 @@ def update_figures(
     family_ids = family_values or []
     allowlist = allowblock_value == "allow"
     x_range_use = x_range if x_range else DEFAULT_X_RANGE
-    visible_range = None
-    if x_range_use and len(x_range_use) == 2:
-        visible_range = (pd.to_datetime(x_range_use[0]), pd.to_datetime(x_range_use[1]))
+    if not x_range_use or len(x_range_use) != 2:
+        start_init, end_init = get_initial_time_range_4h()
+        x_range_use = [start_init.isoformat(), end_init.isoformat()]
+    visible_range = (pd.to_datetime(x_range_use[0]), pd.to_datetime(x_range_use[1]))
+    # Clamp overly wide ranges to keep initial loads small
+    if (visible_range[1] - visible_range[0]) > pd.Timedelta(days=30):
+        end_tmp = visible_range[1]
+        start_tmp = end_tmp - pd.Timedelta(days=7)
+        visible_range = (start_tmp, end_tmp)
+        x_range_use = [start_tmp.isoformat(), end_tmp.isoformat()]
     clicked_time = None
     if click_data and "points" in click_data and click_data["points"]:
         ts = click_data["points"][0].get("x")
         if ts:
             clicked_time = pd.to_datetime(ts)
 
-    hits_filtered = filter_hits(
-        timeframes=timeframes,
-        view_mode=view_mode,
-        pattern_ids=pattern_ids,
-        family_ids=family_ids,
-        allowlist=allowlist,
-        pattern_types=ptypes,
-        ws_range=(ws_range[0], ws_range[1]),
-        lift_range=(lift_range[0], lift_range[1]),
-        stab_range=(stab_range[0], stab_range[1]),
-        sup_range=(sup_range[0], sup_range[1]),
-        visible_range=visible_range,
-        clicked_time=clicked_time,
-    )
-
-    fig4h = make_candle_fig("4h", x_range=x_range_use)
-    fig5m = make_candle_fig("5m", x_range=x_range_use)
+    base_filters = {
+        "pattern_types": ptypes,
+        "ws_range": (ws_range[0], ws_range[1]),
+        "lift_range": (lift_range[0], lift_range[1]),
+        "stab_range": (stab_range[0], stab_range[1]),
+        "sup_range": (sup_range[0], sup_range[1]),
+        "allowlist": allowlist,
+        "pattern_ids": pattern_ids,
+        "family_ids": family_ids,
+        "view_mode": view_mode,
+    }
 
     overlays_on = overlay_enabled and "on" in overlay_enabled
-    if overlays_on and not hits_filtered.empty:
-        for tf, fig in [("4h", fig4h), ("5m", fig5m)]:
-            if tf not in timeframes:
-                continue
-            tf_hits = hits_filtered[hits_filtered["timeframe"] == tf]
-            if visible_range:
-                start, end = visible_range
-                tf_hits = tf_hits[(tf_hits["answer_time"] >= start) & (tf_hits["answer_time"] <= end)]
-            if tf_hits.empty:
-                continue
+    print(f"[debug] show_overlays={overlays_on}")
+
+    fig4h = make_candle_fig("4h", x_range=x_range_use)
+    fig5m = make_candle_fig("5m", x_range=x_range_use) if "5m" in timeframes else make_candle_fig("5m", x_range=x_range_use)
+
+    if not overlays_on or not timeframes:
+        empty_records: List[dict] = []
+        status_txt = "Overlays disabled; no pattern hits loaded."
+        return fig4h, fig5m, empty_records, status_txt
+
+    hits_draw_frames: List[pd.DataFrame] = []
+
+    for tf, fig in [("4h", fig4h), ("5m", fig5m)]:
+        if tf not in timeframes:
+            continue
+
+        load_start, load_end = visible_range
+        if view_mode == "candle" and clicked_time is not None:
+            delta = pd.Timedelta(days=3) if tf == "4h" else pd.Timedelta(hours=12)
+            load_start = clicked_time - delta
+            load_end = clicked_time + delta
+
+        loaded_hits = load_hits_for_timerange(tf, load_start, load_end, base_filters)
+
+        if view_mode == "candle" and clicked_time is not None:
+            window_hits = loaded_hits[
+                ((loaded_hits["start_time"] <= clicked_time) & (loaded_hits["end_time"] >= clicked_time))
+                | (loaded_hits["answer_time"] == clicked_time)
+            ]
+        else:
+            window_hits = loaded_hits
+
+        draw_hits = limit_hits_for_render(window_hits, max_hits)
+        hits_draw_frames.append(draw_hits)
+
+        print(
+            f"[hits] {tf}: loaded={len(loaded_hits)}, filtered={len(window_hits)}, draw={len(draw_hits)}"
+        )
+
+        if overlays_on and not draw_hits.empty:
             df_price = CANDLES[tf]
             time_col = df_price["time_col"].iloc[0]
-            if visible_range:
-                df_vis = df_price[(df_price[time_col] >= start) & (df_price[time_col] <= end)]
-            else:
+            df_vis = df_price[
+                (df_price[time_col] >= visible_range[0]) & (df_price[time_col] <= visible_range[1])
+            ]
+            if df_vis.empty:
                 df_vis = df_price
             y_min = float(df_vis["low"].min()) if not df_vis.empty else float(df_price["low"].min())
             y_max = float(df_vis["high"].max()) if not df_vis.empty else float(df_price["high"].max())
-            shapes, markers = hits_to_shapes_and_markers(tf_hits, tf, y_min, y_max, max_hits)
+            shapes, markers = build_hit_shapes_for_chart(draw_hits, y_min, y_max)
             existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
             fig.update_layout(shapes=shapes + existing_shapes)
             for m in markers:
                 fig.add_trace(m)
 
-    table_df = hits_filtered.copy()
-    if visible_range:
-        start, end = visible_range
-        table_df = table_df[(table_df["answer_time"] >= start) & (table_df["answer_time"] <= end)]
-    table_records = table_df.sort_values("answer_time").to_dict("records")
+    table_df = pd.concat(hits_draw_frames, ignore_index=True) if hits_draw_frames else pd.DataFrame()
+    table_df = limit_hits_for_render(table_df, TABLE_ROW_CAP) if not table_df.empty else table_df
+    table_records = table_df.sort_values("answer_time").to_dict("records")[:TABLE_ROW_CAP] if not table_df.empty else []
     status_txt = (
         f"Hits in view: {len(table_records)} | timeframes={','.join(timeframes)} | "
         f"mode={view_mode}"
