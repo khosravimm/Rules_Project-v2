@@ -429,6 +429,41 @@ knowledge_base:
       فایل قبل از مصرف باید پاس شود.
     - اگر بعدها به چند فایل شکسته شود، هر بخش باید همچنان با KB_SCHEMA هم‌خوان و cross-reference
       معتبر داشته باشد.
+data_layers:
+  - id: pattern_hits_level1_4h
+    type: parquet_table
+    path: data/pattern_hits_4h_level1.parquet
+    description: Level-1 pattern occurrence table for BTCUSDT 4h; one row per hit linking patterns_4h_raw_level1 to btcusdt_4h_features/raw; used for canonical pattern-to-candle mapping and Pattern Viewer overlays.
+    key_fields:
+    - timeframe ("4h")
+    - pattern_id, pattern_type, window_size
+    - family_id, strength (if available)
+    - answer_index, start_index, end_index
+    - answer_time, start_time, end_time
+    - support, lift, stability, score
+    dependencies:
+    - data/patterns_4h_raw_level1.parquet
+    - data/btcusdt_4h_features.parquet
+    optional_dependencies:
+    - data/pattern_families_4h.parquet
+    producer: project/pattern_hits_level1.py
+  - id: pattern_hits_level1_5m
+    type: parquet_table
+    path: data/pattern_hits_5m_level1.parquet
+    description: Level-1 pattern occurrence table for BTCUSDT 5m; one row per hit linking patterns_5m_raw_level1 to btcusdt_5m_features/raw; used for canonical pattern-to-candle mapping and Pattern Viewer overlays.
+    key_fields:
+    - timeframe ("5m")
+    - pattern_id, pattern_type, window_size
+    - family_id, strength (if available)
+    - answer_index, start_index, end_index
+    - answer_time, start_time, end_time
+    - support, lift, stability, score
+    dependencies:
+    - data/patterns_5m_raw_level1.parquet
+    - data/btcusdt_5m_features.parquet
+    optional_dependencies:
+    - data/pattern_families_5m.parquet
+    producer: project/pattern_hits_level1.py
 pipelines:
 - id: data_prep_4h5m
   name: آماده‌سازی داده 4h و 5m برای BTCUSDT
@@ -494,6 +529,24 @@ pipelines:
   outputs:
   - 'kb/btcusdt_4h_knowledge.yaml (sections: patterns, trading_rules, backtests, performance_over_time,
     status_history, cross_market_patterns, market_relations)'
+modules:
+  - id: pattern_viewer_level1
+    type: ui_dash
+    path: ui/pattern_viewer/app.py
+    description: Local Dash UI to inspect Level-1 patterns on BTCUSDT 4h/5m with synced charts, overlays, and hit tables.
+    inputs:
+    - data/btcusdt_4h_raw.parquet
+    - data/btcusdt_5m_raw.parquet
+    - data/pattern_hits_4h_level1.parquet
+    - data/pattern_hits_5m_level1.parquet
+    optional_inputs:
+    - data/pattern_families_4h.parquet
+    - data/pattern_families_5m.parquet
+    modes_features:
+    - pattern-centric view (select pattern_id/family_id, allow/block lists, hit table)
+    - candle-centric view (click candle to see hits covering that candle; overlays limited to context)
+    - family view (family_id selection with consistent coloring and per-family summaries when available)
+    - synced 4h/5m charts; filters for pattern_type, window_size (2-11), lift, stability, support, strength; max_hits to prevent overplotting
 implementation_notes:
   principles:
   - عدم تکیه بر حافظه‌ی چت؛ همه دانش مهم باید در YAML/فایل ذخیره شود.
