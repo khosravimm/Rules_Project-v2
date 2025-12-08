@@ -19,7 +19,7 @@ import plotly.graph_objects as go
 # Paths & data loading (single-time, in-memory for speed)
 # ---------------------------------------------------------------------
 
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 DATA_4H_PATHS = [
     PROJECT_ROOT / "data" / "btcusdt_4h_features.parquet",
@@ -170,6 +170,43 @@ def _normalize_hits(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     return out
 
 
+def _empty_hits_df(timeframe: str) -> pd.DataFrame:
+    """Return an empty hits dataframe with expected columns/dtypes."""
+    return pd.DataFrame(
+        {
+            "timeframe": pd.Series(dtype="object"),
+            "pattern_id": pd.Series(dtype="object"),
+            "w": pd.Series(dtype="Int64"),
+            "pattern_type": pd.Series(dtype="object"),
+            "role": pd.Series(dtype="object"),
+            "support": pd.Series(dtype="float"),
+            "lift": pd.Series(dtype="float"),
+            "stability": pd.Series(dtype="float"),
+            "score": pd.Series(dtype="float"),
+            "family_id": pd.Series(dtype="object"),
+            "strength": pd.Series(dtype="object"),
+            "start_time": pd.Series(dtype="datetime64[ns]"),
+            "ans_time": pd.Series(dtype="datetime64[ns]"),
+        }
+    )
+
+
+def _load_hits_safe(path: pathlib.Path, timeframe: str) -> pd.DataFrame:
+    """Load hits parquet with fallback to empty dataframe on failure."""
+    try:
+        if not path.exists():
+            print(f"[UI] Warning: hits file not found: {path}")
+            return _empty_hits_df(timeframe)
+        raw = pd.read_parquet(path)
+        if raw.empty:
+            print(f"[UI] Warning: hits file empty: {path}")
+            return _empty_hits_df(timeframe)
+        return _normalize_hits(raw, timeframe)
+    except Exception as exc:  # noqa: broad-except
+        print(f"[UI] Warning: failed to load hits from {path}: {exc}")
+        return _empty_hits_df(timeframe)
+
+
 # --- load everything once -----------------------------------------------------
 
 print("[UI] Loading OHLC / pattern hits data ...")
@@ -180,8 +217,8 @@ ohlc_5m_raw = _load_first_existing(DATA_5M_PATHS)
 ohlc_4h = _normalize_ohlc(ohlc_4h_raw)
 ohlc_5m = _normalize_ohlc(ohlc_5m_raw)
 
-hits_4h = _normalize_hits(pd.read_parquet(HITS_4H_PATH), "4h")
-hits_5m = _normalize_hits(pd.read_parquet(HITS_5M_PATH), "5m")
+hits_4h = _load_hits_safe(HITS_4H_PATH, "4h")
+hits_5m = _load_hits_safe(HITS_5M_PATH, "5m")
 
 print(
     f"[UI] 4h candles: {len(ohlc_4h)}, 5m candles: {len(ohlc_5m)}, "
@@ -297,6 +334,21 @@ def make_candlestick_figure(df: pd.DataFrame, title: str):
         title=title,
     )
     return fig
+
+
+def _pattern_rgb(pattern_type: str):
+    """Return RGB tuple for a pattern type."""
+    mapping = {
+        "sequence": (0, 102, 204),
+        "candle_shape": (255, 140, 0),
+        "feature_rule": (46, 139, 87),
+    }
+    return mapping.get(pattern_type, (128, 128, 128))
+
+
+def _rgba_str(rgb, alpha: float) -> str:
+    r, g, b = rgb
+    return f"rgba({r}, {g}, {b}, {alpha})"
 
 
 # ---------------------------------------------------------------------
@@ -1042,6 +1094,8 @@ def update_range_labels(
     Input("allow-block-radio", "value"),
     Input("max-hits-slider", "value"),
     Input("chart-4h", "relayoutData"),
+    Input("overlay-checklist", "value"),
+    Input("chart-4h", "clickData"),
 )
 def update_all(
     tf_list,
@@ -1058,11 +1112,15 @@ def update_all(
     allow_mode,
     max_hits,
     relayout,
+    overlay_values,
+    click_data,
 ):
     if pattern_ids is None:
         pattern_ids = []
     if family_ids is None:
         family_ids = []
+    if overlay_values is None:
+        overlay_values = []
 
     # 1) تعیین بازه زمانی 4h از روی zoom (relayoutData) یا 7 روز آخر
     start_4h, end_4h = get_initial_window_4h(days=7)
@@ -1108,6 +1166,117 @@ def update_all(
     if len(hits_filtered) > max_hits:
         hits_filtered = hits_filtered.head(max_hits)
 
+    zones_enabled = "zones" in overlay_values
+    markers_enabled = "markers" in overlay_values
+
+    # Zones for 4h
+    shapes_4h = []
+    if zones_enabled and not df_4h.empty and not hits_filtered.empty:
+        y0_4h = df_4h["low"].min()
+        y1_4h = df_4h["high"].max()
+        hits_4h_zone = hits_filtered[hits_filtered["timeframe"] == "4h"]
+        for _, row in hits_4h_zone.iterrows():
+            rgb = _pattern_rgb(row["pattern_type"])
+            shapes_4h.append(
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="y",
+                    x0=row["start_time"],
+                    x1=row["ans_time"],
+                    y0=y0_4h,
+                    y1=y1_4h,
+                    fillcolor=_rgba_str(rgb, 0.18),
+                    line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
+                    layer="below",
+                )
+            )
+
+    # Zones for 5m
+    shapes_5m = []
+    if zones_enabled and not df_5m.empty and not hits_filtered.empty:
+        y0_5m = df_5m["low"].min()
+        y1_5m = df_5m["high"].max()
+        hits_5m_zone = hits_filtered[hits_filtered["timeframe"] == "5m"]
+        for _, row in hits_5m_zone.iterrows():
+            rgb = _pattern_rgb(row["pattern_type"])
+            shapes_5m.append(
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="y",
+                    x0=row["start_time"],
+                    x1=row["ans_time"],
+                    y0=y0_5m,
+                    y1=y1_5m,
+                    fillcolor=_rgba_str(rgb, 0.18),
+                    line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
+                    layer="below",
+                )
+            )
+
+    # Marker overlays
+    if markers_enabled and not hits_filtered.empty:
+        def marker_trace(df_prices, subset, name):
+            if df_prices.empty or subset.empty:
+                return None
+            xs = []
+            ys = []
+            colors = []
+            symbols = []
+            texts = []
+            for _, row in subset.iterrows():
+                ans_time = row["ans_time"]
+                price_row = df_prices[df_prices["time"] <= ans_time].tail(1)
+                if price_row.empty:
+                    continue
+                price_val = price_row.iloc[0]["close"]
+                xs.append(ans_time)
+                ys.append(price_val)
+                rgb = _pattern_rgb(row["pattern_type"])
+                colors.append(_rgba_str(rgb, 0.9))
+                symbols.append(
+                    "triangle-up"
+                    if row.get("role", "answer") == "answer"
+                    else "circle"
+                )
+                texts.append(f"{row['pattern_id']} ({row['pattern_type']})")
+            if not xs:
+                return None
+            return go.Scatter(
+                x=xs,
+                y=ys,
+                mode="markers",
+                marker={
+                    "color": colors,
+                    "size": 8,
+                    "symbol": symbols,
+                    "line": {"width": 0.6, "color": "rgba(0,0,0,0.2)"},
+                },
+                name=name,
+                text=texts,
+                hoverinfo="text+x+y",
+                showlegend=False,
+            )
+
+        trace_4h_markers = marker_trace(
+            df_4h, hits_filtered[hits_filtered["timeframe"] == "4h"], "4h hits"
+        )
+        trace_5m_markers = marker_trace(
+            df_5m, hits_filtered[hits_filtered["timeframe"] == "5m"], "5m hits"
+        )
+        if trace_4h_markers:
+            fig_4h.add_trace(trace_4h_markers)
+        if trace_5m_markers:
+            fig_5m.add_trace(trace_5m_markers)
+
+    if shapes_4h:
+        fig_4h.update_layout(shapes=shapes_4h)
+    if shapes_5m:
+        fig_5m.update_layout(shapes=shapes_5m)
+
+    # TODO: Optional heatmap overlay can be added here using hits_filtered density.
+
     # pattern table (pattern-centric)
     pattern_table_data = hits_filtered.to_dict("records")
 
@@ -1115,8 +1284,21 @@ def update_all(
     candle_summary = ""
     candle_pattern_data = []
     if not df_4h.empty:
-        last_candle = df_4h.iloc[-1]
-        candle_time = last_candle["time"]
+        selected_time = None
+        if click_data and "points" in click_data and click_data["points"]:
+            try:
+                selected_time = pd.to_datetime(click_data["points"][0]["x"])
+            except Exception:
+                selected_time = None
+        if selected_time is None:
+            selected_time = df_4h.iloc[-1]["time"]
+
+        candle_row_exact = df_4h[df_4h["time"] == selected_time]
+        if candle_row_exact.empty:
+            candle_row = df_4h.iloc[-1]
+        else:
+            candle_row = candle_row_exact.iloc[0]
+        candle_time = candle_row["time"]
 
         # hitsی که این کندل بین start_time و ans_time آنها قرار دارد
         mask = (hits_filtered["start_time"] <= candle_time) & (
@@ -1126,10 +1308,10 @@ def update_all(
 
         candle_summary = (
             f"Candle @ {candle_time} · "
-            f"O: {last_candle['open']:.2f} · "
-            f"H: {last_candle['high']:.2f} · "
-            f"L: {last_candle['low']:.2f} · "
-            f"C: {last_candle['close']:.2f} "
+            f"O: {candle_row['open']:.2f} · "
+            f"H: {candle_row['high']:.2f} · "
+            f"L: {candle_row['low']:.2f} · "
+            f"C: {candle_row['close']:.2f} "
             f"| Patterns affecting: {len(candle_hits)}"
         )
         candle_pattern_data = candle_hits.to_dict("records")
@@ -1169,4 +1351,7 @@ def update_all(
 
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    if callable(getattr(app, "run", None)):
+        app.run(debug=True)
+    else:
+        app.run_server(debug=True)

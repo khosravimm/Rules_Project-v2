@@ -57,3 +57,7 @@
 - روابط Lead-Lag: در بخش `market_relations` باید مشخص شود کدام مارکت جلوتر است (best_lag_other_leads_base، corr_at_best_lag، granger_p_value). این برای پیش‌بینی و حتی معامله روی ابزارهای همسو/پیشرو حیاتی است.
 - ادغام فازها: فاز کشف هسته و Cross-Market می‌تواند در یک اجرای ترکیبی پیش برود (صرفه‌جویی زمان) به‌شرط رعایت ولیدیشن و داده‌های کافی؛ پایپلاین جدید `continuous_rebacktest_and_refresh` این را پوشش می‌دهد.
 - ابزار: استفاده از VS Code + Codex اختیاری است؛ الزامی نیست. مهم خروجی منطبق با Schema و ولیدیشن است؛ می‌توان از هر ویرایشگر/ابزار دلخواه استفاده کرد.
+## Pattern Viewer UI (Dash)
+- Dash UI for visualizing BTCUSDT 4h/5m candles and Level-1 patterns; run from repo root with `python -m src.ui.pattern_viewer.app` (defaults to http://127.0.0.1:8050).
+- Create/activate a virtualenv first (e.g., `python -m venv .venv && .venv\Scripts\activate && pip install -e .`) so Dash/Plotly/pandas/pyarrow are installed.
+- برای اجرا: از ریشه پروژه همین دستور `python -m src.ui.pattern_viewer.app` را بزنید؛ روی 127.0.0.1:8050 باز می‌شود.
