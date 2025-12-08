@@ -9,9 +9,11 @@ App will listen on http://127.0.0.1:8050
 """
 
 import pathlib
+from functools import lru_cache
 from datetime import datetime, timedelta
 
 import pandas as pd
+import dash
 from dash import Dash, dcc, html, dash_table, Input, Output, State
 import plotly.graph_objects as go
 
@@ -64,7 +66,7 @@ def _normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.DataFrame(
         {
-            "time": pd.to_datetime(df[ts_col]),
+            "time": pd.to_datetime(df[ts_col]).dt.tz_localize(None),
             "open": df[o_col].astype(float),
             "high": df[h_col].astype(float),
             "low": df[l_col].astype(float),
@@ -162,8 +164,8 @@ def _normalize_hits(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     else:
         out["strength"] = "weak"
 
-    out["start_time"] = pd.to_datetime(df[start_col])
-    out["ans_time"] = pd.to_datetime(df[ans_col])
+    out["start_time"] = pd.to_datetime(df[start_col]).dt.tz_localize(None)
+    out["ans_time"] = pd.to_datetime(df[ans_col]).dt.tz_localize(None)
 
     out = out.sort_values("start_time")
 
@@ -207,23 +209,24 @@ def _load_hits_safe(path: pathlib.Path, timeframe: str) -> pd.DataFrame:
         return _empty_hits_df(timeframe)
 
 
-# --- load everything once -----------------------------------------------------
+@lru_cache(maxsize=1)
+def _load_all_data():
+    """Lazy-load OHLC and hits once, after the UI is ready."""
+    print("[UI] Loading OHLC / pattern hits data ...")
+    ohlc_4h_raw = _load_first_existing(DATA_4H_PATHS)
+    ohlc_5m_raw = _load_first_existing(DATA_5M_PATHS)
 
-print("[UI] Loading OHLC / pattern hits data ...")
+    ohlc_4h = _normalize_ohlc(ohlc_4h_raw)
+    ohlc_5m = _normalize_ohlc(ohlc_5m_raw)
 
-ohlc_4h_raw = _load_first_existing(DATA_4H_PATHS)
-ohlc_5m_raw = _load_first_existing(DATA_5M_PATHS)
+    hits_4h = _load_hits_safe(HITS_4H_PATH, "4h")
+    hits_5m = _load_hits_safe(HITS_5M_PATH, "5m")
 
-ohlc_4h = _normalize_ohlc(ohlc_4h_raw)
-ohlc_5m = _normalize_ohlc(ohlc_5m_raw)
-
-hits_4h = _load_hits_safe(HITS_4H_PATH, "4h")
-hits_5m = _load_hits_safe(HITS_5M_PATH, "5m")
-
-print(
-    f"[UI] 4h candles: {len(ohlc_4h)}, 5m candles: {len(ohlc_5m)}, "
-    f"4h hits: {len(hits_4h)}, 5m hits: {len(hits_5m)}"
-)
+    print(
+        f"[UI] 4h candles: {len(ohlc_4h)}, 5m candles: {len(ohlc_5m)}, "
+        f"4h hits: {len(hits_4h)}, 5m hits: {len(hits_5m)}"
+    )
+    return ohlc_4h, ohlc_5m, hits_4h, hits_5m
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -232,6 +235,7 @@ print(
 
 def get_initial_window_4h(days: int = 7):
     """Return (start, end) for last `days` days on 4h timeframe."""
+    ohlc_4h, _, _, _ = _load_all_data()
     if ohlc_4h.empty:
         return None, None
     end = ohlc_4h["time"].max()
@@ -249,6 +253,7 @@ def filter_hits(
     stab_max,
     sup_min,
     sup_max,
+    window_sizes,
     pattern_allow_ids,
     family_allow_ids,
     allow_mode="allow",
@@ -256,21 +261,33 @@ def filter_hits(
     end_time=None,
 ):
     """Apply all filters on hits and return a filtered dataframe."""
+    _, _, hits_4h, hits_5m = _load_all_data()
     frames = []
     if "4h" in timeframe_list:
         frames.append(hits_4h)
     if "5m" in timeframe_list:
         frames.append(hits_5m)
     if not frames:
-        return hits_4h.iloc[0:0].copy()
+        return _empty_hits_df("4h")
 
     df = pd.concat(frames, ignore_index=True)
+
+    # normalize window interval so that x0 <= x1 and strip tz
+    df["x0"] = pd.DataFrame({"a": df["start_time"], "b": df["ans_time"]}).min(axis=1)
+    df["x1"] = pd.DataFrame({"a": df["start_time"], "b": df["ans_time"]}).max(axis=1)
+    df["x0"] = pd.to_datetime(df["x0"]).dt.tz_localize(None)
+    df["x1"] = pd.to_datetime(df["x1"]).dt.tz_localize(None)
 
     if pattern_types:
         df = df[df["pattern_type"].isin(pattern_types)]
 
     if strength_levels:
         df = df[df["strength"].isin(strength_levels)]
+
+    # window sizes
+    if window_sizes:
+        window_set = set(int(x) for x in window_sizes if pd.notna(x))
+        df = df[df["w"].isin(window_set)]
 
     df = df[
         (df["lift"] >= lift_min)
@@ -282,9 +299,9 @@ def filter_hits(
     ]
 
     if start_time is not None:
-        df = df[df["start_time"] >= start_time]
+        df = df[df["x1"] >= start_time]
     if end_time is not None:
-        df = df[df["start_time"] <= end_time]
+        df = df[df["x0"] <= end_time]
 
     # Allow / Block list logic
     if pattern_allow_ids:
@@ -357,10 +374,13 @@ def _rgba_str(rgb, alpha: float) -> str:
 
 external_stylesheets = []
 
+ASSETS_PATH = pathlib.Path(__file__).parent / "assets"
+
 app = Dash(
     __name__,
     external_stylesheets=external_stylesheets,
-    title="PrisonBreaker – Pattern Viewer",
+    assets_folder=str(ASSETS_PATH),
+    title="PrisonBreaker - Pattern Viewer",
 )
 
 # ---- layout (تقریباً همان HTML v3، این‌بار با Dash components) -------------
@@ -371,7 +391,7 @@ timeframe_checklist = dcc.Checklist(
         {"label": "4h", "value": "4h"},
         {"label": "5m", "value": "5m"},
     ],
-    value=["4h", "5m"],
+    value=["4h"],
     labelStyle={"display": "inline-flex", "marginRight": "8px"},
 )
 
@@ -397,24 +417,15 @@ strength_checklist = dcc.Checklist(
     labelStyle={"display": "inline-flex", "marginRight": "8px"},
 )
 
-# برای pattern_id و family_id چند اسم نمونه از hits جمع می‌کنیم
-pattern_options = (
-    pd.concat([hits_4h["pattern_id"], hits_5m["pattern_id"]])
-    .drop_duplicates()
-    .sort_values()
-    .head(200)
-)
-family_options = (
-    pd.concat([hits_4h["family_id"], hits_5m["family_id"]])
-    .drop_duplicates()
-    .sort_values()
-    .head(200)
-)
+pattern_options = []
+family_options = []
 
 # layout اصلی
 app.layout = html.Div(
     className="app-container",
     children=[
+        dcc.Interval(id="data-loader", interval=250, n_intervals=0, max_intervals=1),
+        dcc.Store(id="store-hits"),
         # Header
         html.Div(
             className="header",
@@ -422,7 +433,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            "PrisonBreaker – BTCUSDT Pattern Dashboard (Dash UI)",
+                            "PrisonBreaker – BTCUSDT Pattern Dashboard (Dash UI) · updated by Codex",
                             className="header-title",
                         ),
                         html.Div(
@@ -513,23 +524,18 @@ app.layout = html.Div(
                             className="sidebar-section",
                             children=[
                                 html.Div("Window size", className="sidebar-section-title"),
-                                html.Div(
-                                    className="sidebar-row",
-                                    children=[
-                                        html.Label("2 → 11"),
-                                        html.Span(id="window-size-current", children="current: 5"),
-                                    ],
-                                ),
-                                dcc.Slider(
-                                    id="window-size-slider",
-                                    min=2,
-                                    max=11,
-                                    step=1,
-                                    value=5,
+                                dcc.Dropdown(
+                                    id="window-size-dropdown",
+                                    options=[{"label": str(i), "value": i} for i in range(2, 12)],
+                                    multi=True,
+                                    value=[5],
+                                    placeholder="Select window sizes",
+                                    style={"fontSize": "12px"},
                                 ),
                                 html.Div(
-                                    className="slider-label-row",
-                                    children=[html.Span("min 2"), html.Span("max 11")],
+                                    id="window-size-current",
+                                    style={"fontSize": "11px", "marginTop": "4px"},
+                                    children="selected: 5",
                                 ),
                             ],
                         ),
@@ -552,40 +558,19 @@ app.layout = html.Div(
                                                 html.Span("1.00 – 2.00"),
                                             ],
                                         ),
-                                        html.Div(
-                                            className="range-row",
-                                            children=[
-                                                html.Span("min", className="range-label"),
-                                                dcc.Slider(
-                                                    id="lift-min-slider",
-                                                    min=1.0,
-                                                    max=2.0,
-                                                    step=0.01,
-                                                    value=1.0,
-                                                ),
-                                                html.Span(
-                                                    id="lift-min-value",
-                                                    children="1.00",
-                                                    className="range-value",
-                                                ),
-                                            ],
+                                        dcc.RangeSlider(
+                                            id="lift-range-slider",
+                                            min=1.0,
+                                            max=2.0,
+                                            step=0.01,
+                                            value=[1.0, 2.0],
+                                            tooltip={"placement": "bottom", "always_visible": False},
                                         ),
                                         html.Div(
-                                            className="range-row",
+                                            className="slider-label-row",
                                             children=[
-                                                html.Span("max", className="range-label"),
-                                                dcc.Slider(
-                                                    id="lift-max-slider",
-                                                    min=1.0,
-                                                    max=2.0,
-                                                    step=0.01,
-                                                    value=2.0,
-                                                ),
-                                                html.Span(
-                                                    id="lift-max-value",
-                                                    children="2.00",
-                                                    className="range-value",
-                                                ),
+                                                html.Span(id="lift-min-value", children="1.00"),
+                                                html.Span(id="lift-max-value", children="2.00"),
                                             ],
                                         ),
                                     ],
@@ -601,40 +586,19 @@ app.layout = html.Div(
                                                 html.Span("0.50 – 1.00"),
                                             ],
                                         ),
-                                        html.Div(
-                                            className="range-row",
-                                            children=[
-                                                html.Span("min", className="range-label"),
-                                                dcc.Slider(
-                                                    id="stab-min-slider",
-                                                    min=0.5,
-                                                    max=1.0,
-                                                    step=0.01,
-                                                    value=0.8,
-                                                ),
-                                                html.Span(
-                                                    id="stab-min-value",
-                                                    children="0.80",
-                                                    className="range-value",
-                                                ),
-                                            ],
+                                        dcc.RangeSlider(
+                                            id="stab-range-slider",
+                                            min=0.5,
+                                            max=1.0,
+                                            step=0.01,
+                                            value=[0.8, 1.0],
+                                            tooltip={"placement": "bottom", "always_visible": False},
                                         ),
                                         html.Div(
-                                            className="range-row",
+                                            className="slider-label-row",
                                             children=[
-                                                html.Span("max", className="range-label"),
-                                                dcc.Slider(
-                                                    id="stab-max-slider",
-                                                    min=0.5,
-                                                    max=1.0,
-                                                    step=0.01,
-                                                    value=1.0,
-                                                ),
-                                                html.Span(
-                                                    id="stab-max-value",
-                                                    children="1.00",
-                                                    className="range-value",
-                                                ),
+                                                html.Span(id="stab-min-value", children="0.80"),
+                                                html.Span(id="stab-max-value", children="1.00"),
                                             ],
                                         ),
                                     ],
@@ -650,40 +614,19 @@ app.layout = html.Div(
                                                 html.Span("5 – 300"),
                                             ],
                                         ),
-                                        html.Div(
-                                            className="range-row",
-                                            children=[
-                                                html.Span("min", className="range-label"),
-                                                dcc.Slider(
-                                                    id="sup-min-slider",
-                                                    min=5,
-                                                    max=300,
-                                                    step=1,
-                                                    value=20,
-                                                ),
-                                                html.Span(
-                                                    id="sup-min-value",
-                                                    children="20",
-                                                    className="range-value",
-                                                ),
-                                            ],
+                                        dcc.RangeSlider(
+                                            id="sup-range-slider",
+                                            min=5,
+                                            max=300,
+                                            step=1,
+                                            value=[20, 300],
+                                            tooltip={"placement": "bottom", "always_visible": False},
                                         ),
                                         html.Div(
-                                            className="range-row",
+                                            className="slider-label-row",
                                             children=[
-                                                html.Span("max", className="range-label"),
-                                                dcc.Slider(
-                                                    id="sup-max-slider",
-                                                    min=5,
-                                                    max=300,
-                                                    step=1,
-                                                    value=300,
-                                                ),
-                                                html.Span(
-                                                    id="sup-max-value",
-                                                    children="300",
-                                                    className="range-value",
-                                                ),
+                                                html.Span(id="sup-min-value", children="20"),
+                                                html.Span(id="sup-max-value", children="300"),
                                             ],
                                         ),
                                     ],
@@ -716,7 +659,7 @@ app.layout = html.Div(
                                             "value": "heatmap",
                                         },
                                     ],
-                                    value=[],
+                                    value=["zones", "markers"],
                                     labelStyle={
                                         "display": "block",
                                         "fontSize": "11px",
@@ -725,26 +668,26 @@ app.layout = html.Div(
                                 html.Div(
                                     style={"marginTop": "6px"},
                                     children=[
-                                        html.Div(
-                                            className="sidebar-row",
-                                            children=[
-                                                html.Label("Max overlays (top N hits)"),
-                                                html.Span(id="max-hits-value", children="300"),
-                                            ],
-                                        ),
-                                        dcc.Slider(
-                                            id="max-hits-slider",
-                                            min=50,
-                                            max=1000,
-                                            step=50,
-                                            value=300,
-                                        ),
-                                        html.Div(
-                                            className="slider-label-row",
-                                            children=[html.Span("50"), html.Span("1000")],
-                                        ),
+                                html.Div(
+                                    className="sidebar-row",
+                                    children=[
+                                        html.Label("Max overlays (top N hits)"),
+                                        html.Span(id="max-hits-value", children="150"),
                                     ],
                                 ),
+                                dcc.Slider(
+                                    id="max-hits-slider",
+                                    min=50,
+                                    max=500,
+                                    step=50,
+                                    value=150,
+                                ),
+                                html.Div(
+                                    className="slider-label-row",
+                                    children=[html.Span("50"), html.Span("500")],
+                                ),
+                            ],
+                        ),
                             ],
                         ),
                         # Pattern selection
@@ -754,6 +697,33 @@ app.layout = html.Div(
                                 html.Div(
                                     "Pattern selection",
                                     className="sidebar-section-title",
+                                ),
+                                html.Div(
+                                    style={"display": "flex", "gap": "6px", "marginBottom": "6px"},
+                                    children=[
+                                        html.Button(
+                                            "Select all patterns",
+                                            id="pattern-select-all",
+                                            n_clicks=0,
+                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                        ),
+                                        html.Button(
+                                            "Clear patterns",
+                                            id="pattern-clear",
+                                            n_clicks=0,
+                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                        ),
+                                    ],
+                                ),
+                                html.Button(
+                                    "Apply filters",
+                                    id="apply-filters",
+                                    n_clicks=0,
+                                    style={
+                                        "marginBottom": "8px",
+                                        "padding": "4px 10px",
+                                        "fontSize": "12px",
+                                    },
                                 ),
                                 html.Div("pattern_id (multi)", className="sidebar-row"),
                                 dcc.Dropdown(
@@ -767,6 +737,23 @@ app.layout = html.Div(
                                     "family_id (multi)",
                                     className="sidebar-row",
                                     style={"marginTop": "6px"},
+                                ),
+                                html.Div(
+                                    style={"display": "flex", "gap": "6px", "marginBottom": "6px"},
+                                    children=[
+                                        html.Button(
+                                            "Select all families",
+                                            id="family-select-all",
+                                            n_clicks=0,
+                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                        ),
+                                        html.Button(
+                                            "Clear families",
+                                            id="family-clear",
+                                            n_clicks=0,
+                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                        ),
+                                    ],
                                 ),
                                 dcc.Dropdown(
                                     id="family-id-dropdown",
@@ -815,22 +802,14 @@ app.layout = html.Div(
                                 dcc.Graph(
                                     id="chart-4h",
                                     figure=make_candlestick_figure(
-                                        ohlc_4h[
-                                            ohlc_4h["time"]
-                                            >= (ohlc_4h["time"].max() - timedelta(days=7))
-                                        ],
-                                        "BTCUSDT – 4H Candles",
+                                        pd.DataFrame(), "BTCUSDT – 4H Candles"
                                     ),
                                     config={"displaylogo": False},
                                 ),
                                 dcc.Graph(
                                     id="chart-5m",
                                     figure=make_candlestick_figure(
-                                        ohlc_5m[
-                                            ohlc_5m["time"]
-                                            >= (ohlc_5m["time"].max() - timedelta(days=1))
-                                        ],
-                                        "BTCUSDT – 5M Candles",
+                                        pd.DataFrame(), "BTCUSDT – 5M Candles"
                                     ),
                                     config={"displaylogo": False},
                                 ),
@@ -1031,10 +1010,12 @@ app.layout = html.Div(
 
 @app.callback(
     Output("window-size-current", "children"),
-    Input("window-size-slider", "value"),
+    Input("window-size-dropdown", "value"),
 )
 def update_window_size_label(w):
-    return f"current: {w}"
+    if not w:
+        return "selected: none"
+    return "selected: " + ", ".join(str(i) for i in w)
 
 
 @app.callback(
@@ -1045,23 +1026,20 @@ def update_window_size_label(w):
     Output("sup-min-value", "children"),
     Output("sup-max-value", "children"),
     Output("max-hits-value", "children"),
-    Input("lift-min-slider", "value"),
-    Input("lift-max-slider", "value"),
-    Input("stab-min-slider", "value"),
-    Input("stab-max-slider", "value"),
-    Input("sup-min-slider", "value"),
-    Input("sup-max-slider", "value"),
+    Input("lift-range-slider", "value"),
+    Input("stab-range-slider", "value"),
+    Input("sup-range-slider", "value"),
     Input("max-hits-slider", "value"),
 )
 def update_range_labels(
-    lift_min,
-    lift_max,
-    stab_min,
-    stab_max,
-    sup_min,
-    sup_max,
+    lift_range,
+    stab_range,
+    sup_range,
     max_hits,
 ):
+    lift_min, lift_max = lift_range
+    stab_min, stab_max = stab_range
+    sup_min, sup_max = sup_range
     return (
         f"{lift_min:.2f}",
         f"{lift_max:.2f}",
@@ -1074,77 +1052,100 @@ def update_range_labels(
 
 
 @app.callback(
-    Output("chart-4h", "figure"),
-    Output("chart-5m", "figure"),
-    Output("pattern-table", "data"),
-    Output("candle-summary", "children"),
-    Output("candle-pattern-table", "data"),
-    Output("family-table", "data"),
-    Input("tf-checklist", "value"),
-    Input("pattern-type-checklist", "value"),
-    Input("strength-checklist", "value"),
-    Input("lift-min-slider", "value"),
-    Input("lift-max-slider", "value"),
-    Input("stab-min-slider", "value"),
-    Input("stab-max-slider", "value"),
-    Input("sup-min-slider", "value"),
-    Input("sup-max-slider", "value"),
-    Input("pattern-id-dropdown", "value"),
-    Input("family-id-dropdown", "value"),
-    Input("allow-block-radio", "value"),
-    Input("max-hits-slider", "value"),
-    Input("chart-4h", "relayoutData"),
-    Input("overlay-checklist", "value"),
-    Input("chart-4h", "clickData"),
+    Output("pattern-id-dropdown", "options"),
+    Output("family-id-dropdown", "options"),
+    Output("pattern-id-dropdown", "value"),
+    Output("family-id-dropdown", "value"),
+    Input("data-loader", "n_intervals"),
+    Input("pattern-select-all", "n_clicks"),
+    Input("pattern-clear", "n_clicks"),
+    Input("family-select-all", "n_clicks"),
+    Input("family-clear", "n_clicks"),
+    State("pattern-id-dropdown", "options"),
+    State("family-id-dropdown", "options"),
 )
-def update_all(
+def load_dropdown_options(_, p_all, p_clear, f_all, f_clear, current_pattern_opts, current_family_opts):
+    _, _, hits_4h, hits_5m = _load_all_data()
+
+    def build_options(series):
+        if series.empty:
+            return []
+        return (
+            series.dropna()
+            .astype(str)
+            .drop_duplicates()
+            .sort_values()
+            .map(lambda v: {"label": v, "value": v})
+            .tolist()
+        )
+
+    pattern_opts = build_options(pd.concat([hits_4h["pattern_id"], hits_5m["pattern_id"]], ignore_index=True))
+    family_opts = build_options(pd.concat([hits_4h["family_id"], hits_5m["family_id"]], ignore_index=True))
+
+    pattern_value = dash.no_update
+    family_value = dash.no_update
+    ctx = dash.callback_context
+    if ctx.triggered:
+        trig = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trig == "pattern-select-all":
+            pattern_value = [o["value"] for o in pattern_opts]
+        elif trig == "pattern-clear":
+            pattern_value = []
+        elif trig == "family-select-all":
+            family_value = [o["value"] for o in family_opts]
+        elif trig == "family-clear":
+            family_value = []
+    return pattern_opts, family_opts, pattern_value, family_value
+
+
+@app.callback(
+    Output("store-hits", "data"),
+    Input("data-loader", "n_intervals"),
+    Input("apply-filters", "n_clicks"),
+    Input("pattern-select-all", "n_clicks"),
+    Input("pattern-clear", "n_clicks"),
+    Input("family-select-all", "n_clicks"),
+    Input("family-clear", "n_clicks"),
+    State("tf-checklist", "value"),
+    State("pattern-type-checklist", "value"),
+    State("strength-checklist", "value"),
+    State("lift-range-slider", "value"),
+    State("stab-range-slider", "value"),
+    State("sup-range-slider", "value"),
+    State("window-size-dropdown", "value"),
+    State("pattern-id-dropdown", "value"),
+    State("family-id-dropdown", "value"),
+    State("allow-block-radio", "value"),
+    State("max-hits-slider", "value"),
+)
+def compute_hits_store(
+    _n_intervals,
+    _n_clicks,
+    _p_all,
+    _p_clear,
+    _f_all,
+    _f_clear,
     tf_list,
     pattern_types,
     strengths,
-    lift_min,
-    lift_max,
-    stab_min,
-    stab_max,
-    sup_min,
-    sup_max,
+    lift_range,
+    stab_range,
+    sup_range,
+    window_sizes,
     pattern_ids,
     family_ids,
     allow_mode,
     max_hits,
-    relayout,
-    overlay_values,
-    click_data,
 ):
     if pattern_ids is None:
         pattern_ids = []
     if family_ids is None:
         family_ids = []
-    if overlay_values is None:
-        overlay_values = []
-
-    # 1) تعیین بازه زمانی 4h از روی zoom (relayoutData) یا 7 روز آخر
-    start_4h, end_4h = get_initial_window_4h(days=7)
-    if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
-        try:
-            start_4h = pd.to_datetime(relayout["xaxis.range[0]"])
-            end_4h = pd.to_datetime(relayout["xaxis.range[1]"])
-        except Exception:
-            pass
-
-    # 2) فیلتر کندل‌ها
-    df_4h = ohlc_4h[
-        (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
-    ].copy()
-
-    # 5m window = همان بازه 4h (برای simplicity)
-    df_5m = ohlc_5m[
-        (ohlc_5m["time"] >= start_4h) & (ohlc_5m["time"] <= end_4h)
-    ].copy()
-
-    fig_4h = make_candlestick_figure(df_4h, "BTCUSDT – 4H Candles")
-    fig_5m = make_candlestick_figure(df_5m, "BTCUSDT – 5M Candles")
-
-    # 3) فیلتر hits بر اساس همه فیلترها
+    _load_all_data()
+    window_sizes = [int(x) for x in (window_sizes or []) if x is not None]
+    lift_min, lift_max = lift_range
+    stab_min, stab_max = stab_range
+    sup_min, sup_max = sup_range
     hits_filtered = filter_hits(
         timeframe_list=tf_list,
         pattern_types=pattern_types,
@@ -1155,26 +1156,74 @@ def update_all(
         stab_max=stab_max,
         sup_min=sup_min,
         sup_max=sup_max,
+        window_sizes=window_sizes or [],
         pattern_allow_ids=pattern_ids,
         family_allow_ids=family_ids,
         allow_mode=allow_mode,
-        start_time=start_4h,
-        end_time=end_4h,
+        start_time=None,
+        end_time=None,
     ).sort_values("score", ascending=False)
 
-    # محدودیت top N hits
     if len(hits_filtered) > max_hits:
         hits_filtered = hits_filtered.head(max_hits)
+
+    return hits_filtered.to_dict("records")
+
+
+@app.callback(
+    Output("chart-4h", "figure"),
+    Output("chart-5m", "figure"),
+    Input("store-hits", "data"),
+    Input("overlay-checklist", "value"),
+    Input("chart-4h", "relayoutData"),
+)
+def update_charts(hits_data, overlay_values, relayout):
+    if overlay_values is None:
+        overlay_values = []
+    ohlc_4h, ohlc_5m, _, _ = _load_all_data()
+    hits_df = pd.DataFrame(hits_data or [])
+    if not hits_df.empty:
+        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"]).dt.tz_localize(None)
+        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"]).dt.tz_localize(None)
+        hits_df["x0"] = hits_df[["start_time", "ans_time"]].min(axis=1)
+        hits_df["x1"] = hits_df[["start_time", "ans_time"]].max(axis=1)
+        hits_df["x0"] = hits_df[["start_time", "ans_time"]].min(axis=1)
+        hits_df["x1"] = hits_df[["start_time", "ans_time"]].max(axis=1)
+
+    start_4h, end_4h = get_initial_window_4h(days=3)
+    if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
+        try:
+            start_4h = pd.to_datetime(relayout["xaxis.range[0]"]).tz_localize(None)
+            end_4h = pd.to_datetime(relayout["xaxis.range[1]"]).tz_localize(None)
+        except Exception:
+            pass
+
+    df_4h = ohlc_4h[
+        (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
+    ].copy()
+
+    df_5m = ohlc_5m[
+        (ohlc_5m["time"] >= start_4h) & (ohlc_5m["time"] <= end_4h)
+    ].copy()
+
+    fig_4h = make_candlestick_figure(df_4h, "BTCUSDT – 4H Candles")
+    fig_5m = make_candlestick_figure(df_5m, "BTCUSDT – 5M Candles")
+
+    if not hits_df.empty and "x0" in hits_df:
+        hits_window = hits_df[
+            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
+        ]
+    else:
+        hits_window = hits_df
 
     zones_enabled = "zones" in overlay_values
     markers_enabled = "markers" in overlay_values
 
-    # Zones for 4h
     shapes_4h = []
-    if zones_enabled and not df_4h.empty and not hits_filtered.empty:
+    if zones_enabled and not df_4h.empty and not hits_window.empty:
         y0_4h = df_4h["low"].min()
         y1_4h = df_4h["high"].max()
-        hits_4h_zone = hits_filtered[hits_filtered["timeframe"] == "4h"]
+        hits_4h_zone = hits_window[hits_window["timeframe"] == "4h"]
         for _, row in hits_4h_zone.iterrows():
             rgb = _pattern_rgb(row["pattern_type"])
             shapes_4h.append(
@@ -1182,8 +1231,8 @@ def update_all(
                     type="rect",
                     xref="x",
                     yref="y",
-                    x0=row["start_time"],
-                    x1=row["ans_time"],
+                    x0=row["x0"],
+                    x1=row["x1"],
                     y0=y0_4h,
                     y1=y1_4h,
                     fillcolor=_rgba_str(rgb, 0.18),
@@ -1192,12 +1241,11 @@ def update_all(
                 )
             )
 
-    # Zones for 5m
     shapes_5m = []
-    if zones_enabled and not df_5m.empty and not hits_filtered.empty:
+    if zones_enabled and not df_5m.empty and not hits_window.empty:
         y0_5m = df_5m["low"].min()
         y1_5m = df_5m["high"].max()
-        hits_5m_zone = hits_filtered[hits_filtered["timeframe"] == "5m"]
+        hits_5m_zone = hits_window[hits_window["timeframe"] == "5m"]
         for _, row in hits_5m_zone.iterrows():
             rgb = _pattern_rgb(row["pattern_type"])
             shapes_5m.append(
@@ -1205,8 +1253,8 @@ def update_all(
                     type="rect",
                     xref="x",
                     yref="y",
-                    x0=row["start_time"],
-                    x1=row["ans_time"],
+                    x0=row["x0"],
+                    x1=row["x1"],
                     y0=y0_5m,
                     y1=y1_5m,
                     fillcolor=_rgba_str(rgb, 0.18),
@@ -1215,8 +1263,7 @@ def update_all(
                 )
             )
 
-    # Marker overlays
-    if markers_enabled and not hits_filtered.empty:
+    if markers_enabled and not hits_window.empty:
         def marker_trace(df_prices, subset, name):
             if df_prices.empty or subset.empty:
                 return None
@@ -1260,10 +1307,10 @@ def update_all(
             )
 
         trace_4h_markers = marker_trace(
-            df_4h, hits_filtered[hits_filtered["timeframe"] == "4h"], "4h hits"
+            df_4h, hits_window[hits_window["timeframe"] == "4h"], "4h hits"
         )
         trace_5m_markers = marker_trace(
-            df_5m, hits_filtered[hits_filtered["timeframe"] == "5m"], "5m hits"
+            df_5m, hits_window[hits_window["timeframe"] == "5m"], "5m hits"
         )
         if trace_4h_markers:
             fig_4h.add_trace(trace_4h_markers)
@@ -1275,12 +1322,47 @@ def update_all(
     if shapes_5m:
         fig_5m.update_layout(shapes=shapes_5m)
 
-    # TODO: Optional heatmap overlay can be added here using hits_filtered density.
+    return fig_4h, fig_5m
 
-    # pattern table (pattern-centric)
-    pattern_table_data = hits_filtered.to_dict("records")
 
-    # 4) Candle-centric: کندل آخر 4h در بازه را به عنوان نمونه در نظر می‌گیریم
+@app.callback(
+    Output("pattern-table", "data"),
+    Output("candle-summary", "children"),
+    Output("candle-pattern-table", "data"),
+    Output("family-table", "data"),
+    Input("store-hits", "data"),
+    Input("chart-4h", "relayoutData"),
+    Input("chart-4h", "clickData"),
+)
+def update_tables(hits_data, relayout, click_data):
+    ohlc_4h, _, _, _ = _load_all_data()
+    hits_df = pd.DataFrame(hits_data or [])
+    if not hits_df.empty:
+        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"]).dt.tz_localize(None)
+        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"]).dt.tz_localize(None)
+        hits_df["x0"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).min(axis=1)
+        hits_df["x1"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).max(axis=1)
+
+    start_4h, end_4h = get_initial_window_4h(days=3)
+    if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
+        try:
+            start_4h = pd.to_datetime(relayout["xaxis.range[0]"]).tz_localize(None)
+            end_4h = pd.to_datetime(relayout["xaxis.range[1]"]).tz_localize(None)
+        except Exception:
+            pass
+
+    df_4h = ohlc_4h[
+        (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
+    ].copy()
+
+    if not hits_df.empty and "x0" in hits_df:
+        hits_window = hits_df[
+            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
+        ]
+    else:
+        hits_window = hits_df
+    pattern_table_data = hits_window.to_dict("records")
+
     candle_summary = ""
     candle_pattern_data = []
     if not df_4h.empty:
@@ -1300,11 +1382,13 @@ def update_all(
             candle_row = candle_row_exact.iloc[0]
         candle_time = candle_row["time"]
 
-        # hitsی که این کندل بین start_time و ans_time آنها قرار دارد
-        mask = (hits_filtered["start_time"] <= candle_time) & (
-            hits_filtered["ans_time"] >= candle_time
-        )
-        candle_hits = hits_filtered[mask].copy()
+        if not hits_window.empty and "x0" in hits_window:
+            mask = (hits_window["x0"] <= candle_time) & (
+                hits_window["x1"] >= candle_time
+            )
+            candle_hits = hits_window[mask].copy()
+        else:
+            candle_hits = hits_window
 
         candle_summary = (
             f"Candle @ {candle_time} · "
@@ -1316,12 +1400,11 @@ def update_all(
         )
         candle_pattern_data = candle_hits.to_dict("records")
 
-    # 5) Family view: جمع hits بر اساس family_id + timeframe
-    if hits_filtered.empty:
+    if hits_window.empty:
         family_table_data = []
     else:
         grp = (
-            hits_filtered.groupby(["family_id", "timeframe", "pattern_id"])
+            hits_window.groupby(["family_id", "timeframe", "pattern_id"])
             .agg(
                 {
                     "w": "max",
@@ -1339,19 +1422,17 @@ def update_all(
         )
         family_table_data = grp.to_dict("records")
 
-    return (
-        fig_4h,
-        fig_5m,
-        pattern_table_data,
-        candle_summary,
-        candle_pattern_data,
-        family_table_data,
-    )
+    return pattern_table_data, candle_summary, candle_pattern_data, family_table_data
 
 
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
     if callable(getattr(app, "run", None)):
-        app.run(debug=True)
+        app.run(
+            debug=False,
+            dev_tools_ui=False,
+            dev_tools_hot_reload=False,
+            dev_tools_props_check=False,
+        )
     else:
-        app.run_server(debug=True)
+        app.run_server(debug=False)
