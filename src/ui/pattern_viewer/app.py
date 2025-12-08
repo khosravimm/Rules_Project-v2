@@ -273,10 +273,11 @@ def filter_hits(
     df = pd.concat(frames, ignore_index=True)
 
     # normalize window interval so that x0 <= x1 and strip tz
+    df["start_time"] = pd.to_datetime(df["start_time"], errors="coerce").dt.tz_localize(None)
+    df["ans_time"] = pd.to_datetime(df["ans_time"], errors="coerce").dt.tz_localize(None)
     df["x0"] = pd.DataFrame({"a": df["start_time"], "b": df["ans_time"]}).min(axis=1)
     df["x1"] = pd.DataFrame({"a": df["start_time"], "b": df["ans_time"]}).max(axis=1)
-    df["x0"] = pd.to_datetime(df["x0"]).dt.tz_localize(None)
-    df["x1"] = pd.to_datetime(df["x1"]).dt.tz_localize(None)
+    df = df.dropna(subset=["x0", "x1"])
 
     if pattern_types:
         df = df[df["pattern_type"].isin(pattern_types)]
@@ -1106,6 +1107,7 @@ def load_dropdown_options(_, p_all, p_clear, f_all, f_clear, current_pattern_opt
     Input("pattern-clear", "n_clicks"),
     Input("family-select-all", "n_clicks"),
     Input("family-clear", "n_clicks"),
+    Input("window-size-dropdown", "value"),
     State("tf-checklist", "value"),
     State("pattern-type-checklist", "value"),
     State("strength-checklist", "value"),
@@ -1125,6 +1127,7 @@ def compute_hits_store(
     _p_clear,
     _f_all,
     _f_clear,
+    window_sizes_state,
     tf_list,
     pattern_types,
     strengths,
@@ -1142,7 +1145,8 @@ def compute_hits_store(
     if family_ids is None:
         family_ids = []
     _load_all_data()
-    window_sizes = [int(x) for x in (window_sizes or []) if x is not None]
+    # Window sizes come either from state or the new Input; prefer Input value
+    window_sizes = [int(x) for x in (window_sizes_state or []) if x is not None]
     lift_min, lift_max = lift_range
     stab_min, stab_max = stab_range
     sup_min, sup_max = sup_range
@@ -1183,12 +1187,11 @@ def update_charts(hits_data, overlay_values, relayout):
     ohlc_4h, ohlc_5m, _, _ = _load_all_data()
     hits_df = pd.DataFrame(hits_data or [])
     if not hits_df.empty:
-        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"]).dt.tz_localize(None)
-        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"]).dt.tz_localize(None)
-        hits_df["x0"] = hits_df[["start_time", "ans_time"]].min(axis=1)
-        hits_df["x1"] = hits_df[["start_time", "ans_time"]].max(axis=1)
-        hits_df["x0"] = hits_df[["start_time", "ans_time"]].min(axis=1)
-        hits_df["x1"] = hits_df[["start_time", "ans_time"]].max(axis=1)
+        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"], errors="coerce").dt.tz_localize(None)
+        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"], errors="coerce").dt.tz_localize(None)
+        hits_df["x0"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).min(axis=1)
+        hits_df["x1"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).max(axis=1)
+        hits_df = hits_df.dropna(subset=["x0", "x1"])
 
     start_4h, end_4h = get_initial_window_4h(days=3)
     if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
