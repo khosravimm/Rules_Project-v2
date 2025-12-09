@@ -229,6 +229,7 @@ def _load_all_data():
     )
     return ohlc_4h, ohlc_5m, hits_4h, hits_5m
 
+
 # ---------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------
@@ -322,14 +323,43 @@ def filter_hits(
 
 
 def make_candlestick_figure(df: pd.DataFrame, title: str):
+    """
+    TradingView-like candlestick:
+    - رنگ سبز/قرمز تمیز
+    - grid سبک
+    - crosshair روی محور X/Y
+    - hovermode "x unified"
+    - بدون range slider
+    """
     if df.empty:
         fig = go.Figure()
         fig.update_layout(
             template="plotly_white",
-            xaxis={"title": "time"},
-            yaxis={"title": "price"},
+            xaxis=dict(
+                title="time",
+                showgrid=True,
+                gridcolor="rgba(180,180,180,0.2)",
+                rangeslider=dict(visible=False),
+                showspikes=True,
+                spikemode="across",
+                spikesnap="cursor",
+                spikethickness=1,
+                spikedash="solid",
+            ),
+            yaxis=dict(
+                title="price",
+                showgrid=True,
+                gridcolor="rgba(180,180,180,0.2)",
+                showspikes=True,
+                spikemode="across",
+                spikesnap="cursor",
+                spikethickness=1,
+                spikedash="solid",
+            ),
             margin=dict(l=40, r=10, t=30, b=20),
             title=title + " (no data)",
+            dragmode="pan",
+            hovermode="x unified",
         )
         return fig
 
@@ -342,16 +372,52 @@ def make_candlestick_figure(df: pd.DataFrame, title: str):
                 low=df["low"],
                 close=df["close"],
                 name="price",
+                increasing_line_color="#26a69a",
+                increasing_fillcolor="#26a69a",
+                decreasing_line_color="#ef5350",
+                decreasing_fillcolor="#ef5350",
+                whiskerwidth=0.4,
             )
         ]
     )
+
     fig.update_layout(
         template="plotly_white",
-        xaxis={"title": "time"},
-        yaxis={"title": "price"},
+        xaxis=dict(
+            title="time",
+            showgrid=True,
+            gridcolor="rgba(180,180,180,0.2)",
+            rangeslider=dict(visible=False),
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikethickness=1,
+            spikedash="solid",
+        ),
+        yaxis=dict(
+            title="price",
+            showgrid=True,
+            gridcolor="rgba(180,180,180,0.2)",
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikethickness=1,
+            spikedash="solid",
+        ),
         margin=dict(l=40, r=10, t=30, b=20),
         title=title,
+        dragmode="pan",
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=10),
+        ),
     )
+
     return fig
 
 
@@ -385,7 +451,7 @@ app = Dash(
     title="PrisonBreaker - Pattern Viewer",
 )
 
-# ---- layout (تقریباً همان HTML v3، این‌بار با Dash components) -------------
+# ---- layout (Pattern Viewer Dashboard) -------------
 
 timeframe_checklist = dcc.Checklist(
     id="tf-checklist",
@@ -435,7 +501,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            "PrisonBreaker – BTCUSDT Pattern Dashboard (Dash UI) · updated by Codex",
+                            "PrisonBreaker – BTCUSDT Pattern Dashboard (Dash UI) · updated by Codex &",
                             className="header-title",
                         ),
                         html.Div(
@@ -521,7 +587,7 @@ app.layout = html.Div(
                                 pattern_type_checklist,
                             ],
                         ),
-                        # Window size (فقط یک slider، فعلا به صورت scalar)
+                        # Window size
                         html.Div(
                             className="sidebar-section",
                             children=[
@@ -541,7 +607,7 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
-                        # Pattern metrics filters (range)
+                        # Pattern metrics filters
                         html.Div(
                             className="sidebar-section",
                             children=[
@@ -646,7 +712,7 @@ app.layout = html.Div(
                                 strength_checklist,
                             ],
                         ),
-                        # Overlays (فقط کنترلی؛ فعلاً روی چارت استفاده نمی‌کنیم)
+                        # Overlays
                         html.Div(
                             className="sidebar-section",
                             children=[
@@ -670,26 +736,29 @@ app.layout = html.Div(
                                 html.Div(
                                     style={"marginTop": "6px"},
                                     children=[
-                                html.Div(
-                                    className="sidebar-row",
-                                    children=[
-                                        html.Label("Max overlays (top N hits)"),
-                                        html.Span(id="max-hits-value", children="150"),
+                                        html.Div(
+                                            className="sidebar-row",
+                                            children=[
+                                                html.Label("Max overlays (top N hits)"),
+                                                html.Span(
+                                                    id="max-hits-value",
+                                                    children="150",
+                                                ),
+                                            ],
+                                        ),
+                                        dcc.Slider(
+                                            id="max-hits-slider",
+                                            min=50,
+                                            max=500,
+                                            step=50,
+                                            value=150,
+                                        ),
+                                        html.Div(
+                                            className="slider-label-row",
+                                            children=[html.Span("50"), html.Span("500")],
+                                        ),
                                     ],
                                 ),
-                                dcc.Slider(
-                                    id="max-hits-slider",
-                                    min=50,
-                                    max=500,
-                                    step=50,
-                                    value=150,
-                                ),
-                                html.Div(
-                                    className="slider-label-row",
-                                    children=[html.Span("50"), html.Span("500")],
-                                ),
-                            ],
-                        ),
                             ],
                         ),
                         # Pattern selection
@@ -701,19 +770,29 @@ app.layout = html.Div(
                                     className="sidebar-section-title",
                                 ),
                                 html.Div(
-                                    style={"display": "flex", "gap": "6px", "marginBottom": "6px"},
+                                    style={
+                                        "display": "flex",
+                                        "gap": "6px",
+                                        "marginBottom": "6px",
+                                    },
                                     children=[
                                         html.Button(
                                             "Select all patterns",
                                             id="pattern-select-all",
                                             n_clicks=0,
-                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                            style={
+                                                "fontSize": "11px",
+                                                "padding": "4px 6px",
+                                            },
                                         ),
                                         html.Button(
                                             "Clear patterns",
                                             id="pattern-clear",
                                             n_clicks=0,
-                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                            style={
+                                                "fontSize": "11px",
+                                                "padding": "4px 6px",
+                                            },
                                         ),
                                     ],
                                 ),
@@ -727,7 +806,10 @@ app.layout = html.Div(
                                         "fontSize": "12px",
                                     },
                                 ),
-                                html.Div("pattern_id (multi)", className="sidebar-row"),
+                                html.Div(
+                                    "pattern_id (multi)",
+                                    className="sidebar-row",
+                                ),
                                 dcc.Dropdown(
                                     id="pattern-id-dropdown",
                                     options=[
@@ -741,19 +823,29 @@ app.layout = html.Div(
                                     style={"marginTop": "6px"},
                                 ),
                                 html.Div(
-                                    style={"display": "flex", "gap": "6px", "marginBottom": "6px"},
+                                    style={
+                                        "display": "flex",
+                                        "gap": "6px",
+                                        "marginBottom": "6px",
+                                    },
                                     children=[
                                         html.Button(
                                             "Select all families",
                                             id="family-select-all",
                                             n_clicks=0,
-                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                            style={
+                                                "fontSize": "11px",
+                                                "padding": "4px 6px",
+                                            },
                                         ),
                                         html.Button(
                                             "Clear families",
                                             id="family-clear",
                                             n_clicks=0,
-                                            style={"fontSize": "11px", "padding": "4px 6px"},
+                                            style={
+                                                "fontSize": "11px",
+                                                "padding": "4px 6px",
+                                            },
                                         ),
                                     ],
                                 ),
@@ -804,14 +896,14 @@ app.layout = html.Div(
                                 dcc.Graph(
                                     id="chart-4h",
                                     figure=make_candlestick_figure(
-                                        pd.DataFrame(), "BTCUSDT – 4H Candles"
+                                        pd.DataFrame(), "BTCUSDT - 4H Candles"
                                     ),
                                     config={"displaylogo": False},
                                 ),
                                 dcc.Graph(
                                     id="chart-5m",
                                     figure=make_candlestick_figure(
-                                        pd.DataFrame(), "BTCUSDT – 5M Candles"
+                                        pd.DataFrame(), "BTCUSDT - 5M Candles"
                                     ),
                                     config={"displaylogo": False},
                                 ),
@@ -832,165 +924,129 @@ app.layout = html.Div(
                                 html.Div(
                                     className="info-body",
                                     children=[
-                                        # Pattern-centric table
-                                        html.Div(
-                                            className="info-section",
+                                        dcc.Tabs(
+                                            id="info-tabs",
+                                            value="pattern",
                                             children=[
-                                                html.Div(
-                                                    "Pattern View (pattern-centric)",
-                                                    className="info-section-title",
-                                                ),
-                                                dash_table.DataTable(
-                                                    id="pattern-table",
-                                                    columns=[
-                                                        {"name": "timeframe", "id": "timeframe"},
-                                                        {"name": "pattern_id", "id": "pattern_id"},
-                                                        {"name": "w", "id": "w"},
-                                                        {
-                                                            "name": "pattern_type",
-                                                            "id": "pattern_type",
-                                                        },
-                                                        {"name": "role", "id": "role"},
-                                                        {"name": "support", "id": "support"},
-                                                        {"name": "lift", "id": "lift"},
-                                                        {
-                                                            "name": "stability",
-                                                            "id": "stability",
-                                                        },
-                                                        {"name": "score", "id": "score"},
-                                                        {
-                                                            "name": "family_id",
-                                                            "id": "family_id",
-                                                        },
-                                                        {
-                                                            "name": "strength",
-                                                            "id": "strength",
-                                                        },
-                                                        {
-                                                            "name": "start_time",
-                                                            "id": "start_time",
-                                                        },
-                                                        {"name": "ans_time", "id": "ans_time"},
+                                                dcc.Tab(
+                                                    label="Pattern",
+                                                    value="pattern",
+                                                    children=[
+                                                        html.Div(
+                                                            className="info-section",
+                                                            children=[
+                                                                html.Div(
+                                                                    "Pattern View (pattern-centric)",
+                                                                    className="info-section-title",
+                                                                ),
+                                                                dash_table.DataTable(
+                                                                    id="pattern-table",
+                                                                    columns=[
+                                                                        {"name": "timeframe", "id": "timeframe"},
+                                                                        {"name": "pattern_id", "id": "pattern_id"},
+                                                                        {"name": "w", "id": "w"},
+                                                                        {"name": "pattern_type", "id": "pattern_type"},
+                                                                        {"name": "role", "id": "role"},
+                                                                        {"name": "support", "id": "support"},
+                                                                        {"name": "lift", "id": "lift"},
+                                                                        {"name": "stability", "id": "stability"},
+                                                                        {"name": "score", "id": "score"},
+                                                                        {"name": "family_id", "id": "family_id"},
+                                                                        {"name": "strength", "id": "strength"},
+                                                                        {"name": "start_time", "id": "start_time"},
+                                                                        {"name": "ans_time", "id": "ans_time"},
+                                                                    ],
+                                                                    page_size=10,
+                                                                    style_table={
+                                                                        "overflowX": "auto",
+                                                                        "fontSize": 11,
+                                                                    },
+                                                                    style_cell={"padding": "3px"},
+                                                                ),
+                                                            ],
+                                                        ),
                                                     ],
-                                                    page_size=10,
-                                                    style_table={
-                                                        "overflowX": "auto",
-                                                        "fontSize": 11,
-                                                    },
-                                                    style_cell={"padding": "3px"},
                                                 ),
-                                            ],
-                                        ),
-                                        # Candle-centric
-                                        html.Div(
-                                            className="info-section",
-                                            children=[
-                                                html.Div(
-                                                    "Candle View (candle-centric)",
-                                                    className="info-section-title",
-                                                ),
-                                                html.Div(
-                                                    id="candle-summary",
-                                                    style={
-                                                        "fontSize": "11px",
-                                                        "marginBottom": "4px",
-                                                    },
-                                                ),
-                                                dash_table.DataTable(
-                                                    id="candle-pattern-table",
-                                                    columns=[
-                                                        {
-                                                            "name": "pattern_id",
-                                                            "id": "pattern_id",
-                                                        },
-                                                        {
-                                                            "name": "timeframe",
-                                                            "id": "timeframe",
-                                                        },
-                                                        {"name": "w", "id": "w"},
-                                                        {
-                                                            "name": "pattern_type",
-                                                            "id": "pattern_type",
-                                                        },
-                                                        {"name": "role", "id": "role"},
-                                                        {
-                                                            "name": "family_id",
-                                                            "id": "family_id",
-                                                        },
-                                                        {
-                                                            "name": "strength",
-                                                            "id": "strength",
-                                                        },
-                                                        {
-                                                            "name": "support",
-                                                            "id": "support",
-                                                        },
-                                                        {"name": "lift", "id": "lift"},
-                                                        {
-                                                            "name": "stability",
-                                                            "id": "stability",
-                                                        },
-                                                        {"name": "score", "id": "score"},
+                                                dcc.Tab(
+                                                    label="Candle",
+                                                    value="candle",
+                                                    children=[
+                                                        html.Div(
+                                                            className="info-section",
+                                                            children=[
+                                                                html.Div(
+                                                                    "Candle View (candle-centric)",
+                                                                    className="info-section-title",
+                                                                ),
+                                                                html.Div(
+                                                                    id="candle-summary",
+                                                                    style={
+                                                                        "fontSize": "11px",
+                                                                        "marginBottom": "4px",
+                                                                    },
+                                                                ),
+                                                                dash_table.DataTable(
+                                                                    id="candle-pattern-table",
+                                                                    columns=[
+                                                                        {"name": "pattern_id", "id": "pattern_id"},
+                                                                        {"name": "timeframe", "id": "timeframe"},
+                                                                        {"name": "w", "id": "w"},
+                                                                        {"name": "pattern_type", "id": "pattern_type"},
+                                                                        {"name": "role", "id": "role"},
+                                                                        {"name": "family_id", "id": "family_id"},
+                                                                        {"name": "strength", "id": "strength"},
+                                                                        {"name": "support", "id": "support"},
+                                                                        {"name": "lift", "id": "lift"},
+                                                                        {"name": "stability", "id": "stability"},
+                                                                        {"name": "score", "id": "score"},
+                                                                    ],
+                                                                    page_size=10,
+                                                                    style_table={
+                                                                        "overflowX": "auto",
+                                                                        "fontSize": 11,
+                                                                    },
+                                                                    style_cell={"padding": "3px"},
+                                                                ),
+                                                            ],
+                                                        ),
                                                     ],
-                                                    page_size=10,
-                                                    style_table={
-                                                        "overflowX": "auto",
-                                                        "fontSize": 11,
-                                                    },
-                                                    style_cell={"padding": "3px"},
                                                 ),
-                                            ],
-                                        ),
-                                        # Family view
-                                        html.Div(
-                                            className="info-section",
-                                            children=[
-                                                html.Div(
-                                                    "Family View (family-centric)",
-                                                    className="info-section-title",
-                                                ),
-                                                dash_table.DataTable(
-                                                    id="family-table",
-                                                    columns=[
-                                                        {
-                                                            "name": "family_id",
-                                                            "id": "family_id",
-                                                        },
-                                                        {
-                                                            "name": "timeframe",
-                                                            "id": "timeframe",
-                                                        },
-                                                        {
-                                                            "name": "pattern_id",
-                                                            "id": "pattern_id",
-                                                        },
-                                                        {"name": "w", "id": "w"},
-                                                        {
-                                                            "name": "pattern_type",
-                                                            "id": "pattern_type",
-                                                        },
-                                                        {"name": "support", "id": "support"},
-                                                        {"name": "lift", "id": "lift"},
-                                                        {
-                                                            "name": "stability",
-                                                            "id": "stability",
-                                                        },
-                                                        {"name": "score", "id": "score"},
-                                                        {
-                                                            "name": "strength",
-                                                            "id": "strength",
-                                                        },
-                                                        {
-                                                            "name": "hits_visible",
-                                                            "id": "hits_visible",
-                                                        },
+                                                dcc.Tab(
+                                                    label="Family",
+                                                    value="family",
+                                                    children=[
+                                                        html.Div(
+                                                            className="info-section",
+                                                            children=[
+                                                                html.Div(
+                                                                    "Family View (family-centric)",
+                                                                    className="info-section-title",
+                                                                ),
+                                                                dash_table.DataTable(
+                                                                    id="family-table",
+                                                                    columns=[
+                                                                        {"name": "family_id", "id": "family_id"},
+                                                                        {"name": "timeframe", "id": "timeframe"},
+                                                                        {"name": "pattern_id", "id": "pattern_id"},
+                                                                        {"name": "w", "id": "w"},
+                                                                        {"name": "pattern_type", "id": "pattern_type"},
+                                                                        {"name": "support", "id": "support"},
+                                                                        {"name": "lift", "id": "lift"},
+                                                                        {"name": "stability", "id": "stability"},
+                                                                        {"name": "score", "id": "score"},
+                                                                        {"name": "strength", "id": "strength"},
+                                                                        {"name": "hits_visible", "id": "hits_visible"},
+                                                                    ],
+                                                                    page_size=10,
+                                                                    style_table={
+                                                                        "overflowX": "auto",
+                                                                        "fontSize": 11,
+                                                                    },
+                                                                    style_cell={"padding": "3px"},
+                                                                ),
+                                                            ],
+                                                        ),
                                                     ],
-                                                    page_size=10,
-                                                    style_table={
-                                                        "overflowX": "auto",
-                                                        "fontSize": 11,
-                                                    },
-                                                    style_cell={"padding": "3px"},
                                                 ),
                                             ],
                                         ),
@@ -1008,6 +1064,16 @@ app.layout = html.Div(
 # ---------------------------------------------------------------------
 # Callbacks
 # ---------------------------------------------------------------------
+
+
+@app.callback(
+    Output("info-tabs", "value"),
+    Input("view-mode-radio", "value"),
+)
+def sync_tabs_with_view_mode(view_mode):
+    if view_mode in ("pattern", "candle", "family"):
+        return view_mode
+    return "pattern"
 
 
 @app.callback(
@@ -1119,7 +1185,7 @@ def load_dropdown_options(_, p_all, p_clear, f_all, f_clear, current_pattern_opt
     State("pattern-id-dropdown", "value"),
     State("family-id-dropdown", "value"),
     State("allow-block-radio", "value"),
-    State("max-hits-slider", "value"),  # kept for signature compatibility; handled downstream
+    State("max-hits-slider", "value"),
 )
 def compute_hits_store(
     _n_intervals,
@@ -1146,7 +1212,6 @@ def compute_hits_store(
     if family_ids is None:
         family_ids = []
     _load_all_data()
-    # Window sizes come either from state or the new Input; prefer Input value
     window_sizes = [int(x) for x in (window_sizes_state or []) if x is not None]
     lift_min, lift_max = lift_range
     stab_min, stab_max = stab_range
