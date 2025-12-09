@@ -3,10 +3,12 @@ from __future__ import annotations
 import uvicorn
 from fastapi import FastAPI
 
+from .endpoints.patterns import router as patterns_router
 from .endpoints.trading import router as trading_router
 
-app = FastAPI(title="PrisonBreaker API", version="0.1.0")
+app = FastAPI(title="PrisonBreaker API", version="0.2.0")
 app.include_router(trading_router)
+app.include_router(patterns_router)
 
 
 @app.get("/health")

@@ -576,3 +576,17 @@ implementation_notes:
       - LLM Spec دقیق را تولید می‌کند.
       - انسان Spec را به Codex می‌دهد.
       - کد تولیدی توسط LLM + انسان review و اصلاح می‌شود.
+instructions:
+  prisonbreaker_nav_en:
+    language: "EN"
+    version: "v1.0.0"
+    last_updated: "2025-12-09"
+    markdown_path: "project/docs/Navasangiri_PrisonBreaker_INSTRUCTIONS_EN.md"
+    summary:
+      role: "quant trader + data scientist + software architect"
+      objective: "short-/mid-term capital growth for debt repayment"
+      key_constraints:
+        - "no partial code, production-grade only"
+        - "use Canvas & KB"
+        - "no guaranteed profit"
+        - "every candle contains information"

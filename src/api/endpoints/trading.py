@@ -1,141 +1,128 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import List, Literal, Optional
+from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
 
-from data.ohlcv_loader import load_ohlcv
+from api.config import SUPPORTED_TIMEFRAMES
+from api.schemas import Candle, CandlesResponse, PatternHit, PatternHitsResponse
+from api.services.data_access import (
+    DEFAULT_SYMBOL,
+    _to_utc,
+    derive_direction_from_candles,
+    load_candles_between,
+    load_pattern_hits_frame,
+    normalize_hits_dataframe,
+)
 
 router = APIRouter()
-
-Timeframe = Literal["5m", "15m", "1h", "4h", "1d"]
-Direction = Literal["long", "short", "neutral"]
-Strength = Literal["weak", "medium", "strong"]
-
-
-class Candle(BaseModel):
-    time: int  # unix seconds
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: Optional[float] = None
-
-
-class CandlesResponse(BaseModel):
-    symbol: str
-    timeframe: Timeframe
-    candles: List[Candle]
-
-
-class PatternHit(BaseModel):
-    id: str
-    time: int  # unix seconds
-    direction: Direction
-    strength: Optional[Strength] = None
-
-
-class PatternHitsResponse(BaseModel):
-    symbol: str
-    timeframe: Timeframe
-    hits: List[PatternHit]
-
-
-_TIMEFRAME_SUPPORTED = {"5m", "4h"}
-_PATTERN_PATHS = {
-    "4h": Path("data/pattern_hits_4h_level1.parquet"),
-    "5m": Path("data/pattern_hits_5m_level1.parquet"),
-}
 
 
 @router.get("/api/candles", response_model=CandlesResponse)
 def get_candles(
-    symbol: str = Query("BTCUSDT"),
-    timeframe: Timeframe = Query("4h"),
-    limit: int = Query(500, ge=1, le=1500),
+    symbol: str = Query(DEFAULT_SYMBOL),
+    timeframe: str = Query("4h"),
+    start: Optional[str] = Query(None, description="ISO-8601 UTC start"),
+    end: Optional[str] = Query(None, description="ISO-8601 UTC end"),
+    limit: int = Query(500, ge=1, le=5000),
 ) -> CandlesResponse:
-    if symbol.upper() not in {"BTCUSDT", "BTCUSDT_PERP"}:
-        raise HTTPException(status_code=400, detail="Only BTCUSDT is supported currently.")
     tf = timeframe.lower()
-    if tf not in _TIMEFRAME_SUPPORTED:
-        raise HTTPException(status_code=400, detail=f"Unsupported timeframe '{timeframe}'. Use one of {_TIMEFRAME_SUPPORTED}.")
+    if tf not in SUPPORTED_TIMEFRAMES:
+        raise HTTPException(status_code=400, detail=f"Unsupported timeframe '{timeframe}'. Use one of {SUPPORTED_TIMEFRAMES}.")
 
+    start_ts = _to_utc(start) if start else None
+    end_ts = _to_utc(end) if end else None
     try:
-        df = load_ohlcv(
-            market="BTCUSDT_PERP",
-            timeframe=tf,
-            n_candles=limit,
-        )
-    except Exception as exc:
+        df = load_candles_between(tf, start_ts, end_ts)
+    except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=f"failed to load candles: {exc!r}")
 
-    candles: List[Candle] = []
-    if not df.empty:
-        # ensure UTC and unix seconds
-        times = pd.to_datetime(df["open_time"], utc=True, errors="coerce")
-        for _, row in df.assign(open_time=times).iterrows():
-            candles.append(
-                Candle(
-                    time=int(row["open_time"].timestamp()),
-                    open=float(row["open"]),
-                    high=float(row["high"]),
-                    low=float(row["low"]),
-                    close=float(row["close"]),
-                    volume=float(row["volume"]) if "volume" in row else None,
-                )
-            )
+    if start_ts is None and end_ts is None and limit and not df.empty and len(df) > limit:
+        df = df.tail(limit)
 
-    return CandlesResponse(symbol="BTCUSDT", timeframe=tf, candles=candles)
+    candles: List[Candle] = []
+    for row in df.itertuples():
+        ts = pd.to_datetime(row.open_time, utc=True, errors="coerce")
+        candles.append(
+            Candle(
+                timestamp=ts.to_pydatetime(),
+                open=float(row.open),
+                high=float(row.high),
+                low=float(row.low),
+                close=float(row.close),
+                volume=float(row.volume) if hasattr(row, "volume") else None,
+            )
+        )
+
+    return CandlesResponse(symbol=symbol, timeframe=tf, candles=candles)
 
 
 @router.get("/api/pattern-hits", response_model=PatternHitsResponse)
 def get_pattern_hits(
-    symbol: str = Query("BTCUSDT"),
-    timeframe: Timeframe = Query("4h"),
-    limit: int = Query(200, ge=1, le=2000),
+    symbol: str = Query(DEFAULT_SYMBOL),
+    timeframe: str = Query("4h"),
     start: Optional[str] = Query(None),
     end: Optional[str] = Query(None),
+    pattern_type: Optional[str] = Query(None),
+    direction: Optional[str] = Query(None),
+    pattern_id: Optional[str] = Query(None),
+    limit: int = Query(400, ge=1, le=5000),
 ) -> PatternHitsResponse:
     tf = timeframe.lower()
-    if tf not in _TIMEFRAME_SUPPORTED:
-        raise HTTPException(status_code=400, detail=f"Unsupported timeframe '{timeframe}'. Use one of {_TIMEFRAME_SUPPORTED}.")
-    path = _PATTERN_PATHS[tf]
-    if not path.exists():
+    if tf not in SUPPORTED_TIMEFRAMES:
+        raise HTTPException(status_code=400, detail=f"Unsupported timeframe '{timeframe}'. Use one of {SUPPORTED_TIMEFRAMES}.")
+
+    start_ts = _to_utc(start) if start else None
+    end_ts = _to_utc(end) if end else None
+
+    df_hits = load_pattern_hits_frame(tf)
+    if df_hits.empty:
         return PatternHitsResponse(symbol=symbol, timeframe=tf, hits=[])
 
-    try:
-        df_all = pd.read_parquet(path)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"failed to load pattern hits: {exc!r}")
+    df_hits = normalize_hits_dataframe(
+        timeframe=tf,
+        df_hits=df_hits,
+        start=start_ts,
+        end=end_ts,
+        pattern_type=pattern_type,
+        pattern_id=pattern_id,
+        direction=direction,
+    )
+    if df_hits.empty:
+        return PatternHitsResponse(symbol=symbol, timeframe=tf, hits=[])
 
-    cols_keep = [c for c in ["pattern_id", "id", "timeframe", "answer_time", "pattern_type", "strength"] if c in df_all.columns]
-    df = df_all[cols_keep].copy()
-
-    if "timeframe" in df.columns:
-        df = df[df["timeframe"] == tf]
-    if "answer_time" in df.columns:
-        df["answer_time"] = pd.to_datetime(df["answer_time"], utc=True, errors="coerce")
-        if start:
-            df = df[df["answer_time"] >= pd.to_datetime(start, utc=True)]
-        if end:
-            df = df[df["answer_time"] <= pd.to_datetime(end, utc=True)]
-
-    df = df.sort_values("answer_time", ascending=False).head(limit)
-
+    candle_df = load_candles_between(tf, None, None)
     hits: List[PatternHit] = []
-    for _, row in df.iterrows():
-        ts = row.get("answer_time")
-        unix_ts = int(ts.timestamp()) if pd.notna(ts) else 0
+
+    for row in df_hits.itertuples():
+        derived_dir = derive_direction_from_candles(getattr(row, "answer_time", pd.NaT), candle_df)
+        dir_filter = getattr(row, "_direction_filter", None)
+        if dir_filter and derived_dir and derived_dir != dir_filter:
+            continue
         hits.append(
             PatternHit(
-                id=str(row.get("pattern_id") or row.get("id") or ""),
-                time=unix_ts,
-                direction="neutral",
-                strength=row.get("strength") if pd.notna(row.get("strength")) else None,
+                pattern_id=str(getattr(row, "pattern_id", "")),
+                pattern_type=getattr(row, "pattern_type", None),
+                direction=derived_dir,
+                start_ts=pd.to_datetime(getattr(row, "x0", None), utc=True, errors="coerce").to_pydatetime()
+                if getattr(row, "x0", None) is not None
+                else None,
+                end_ts=pd.to_datetime(getattr(row, "x1", None), utc=True, errors="coerce").to_pydatetime()
+                if getattr(row, "x1", None) is not None
+                else None,
+                entry_candle_ts=pd.to_datetime(getattr(row, "answer_time", None), utc=True, errors="coerce").to_pydatetime()
+                if getattr(row, "answer_time", None) is not None
+                else None,
+                accuracy=float(getattr(row, "score", np.nan)) if hasattr(row, "score") and not pd.isna(row.score) else None,
+                support=float(getattr(row, "support", np.nan)) if hasattr(row, "support") and not pd.isna(row.support) else None,
+                lift=float(getattr(row, "lift", np.nan)) if hasattr(row, "lift") and not pd.isna(row.lift) else None,
+                stability=float(getattr(row, "stability", np.nan)) if hasattr(row, "stability") and not pd.isna(row.stability) else None,
+                strength_level=getattr(row, "strength", None),
             )
         )
+        if len(hits) >= limit:
+            break
 
     return PatternHitsResponse(symbol=symbol, timeframe=tf, hits=hits)
