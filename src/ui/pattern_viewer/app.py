@@ -116,8 +116,9 @@ def _normalize_hits(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     ans_col = pick_req("ans_time", "answer_time", "ans_ts")
 
     out = pd.DataFrame()
-    out["timeframe"] = timeframe
     out["pattern_id"] = df[pattern_col].astype(str)
+    # assign timeframe after index is established so it fills all rows
+    out["timeframe"] = timeframe
 
     if w_col:
         out["w"] = df[w_col].astype("Int64")
@@ -1118,7 +1119,7 @@ def load_dropdown_options(_, p_all, p_clear, f_all, f_clear, current_pattern_opt
     State("pattern-id-dropdown", "value"),
     State("family-id-dropdown", "value"),
     State("allow-block-radio", "value"),
-    State("max-hits-slider", "value"),
+    State("max-hits-slider", "value"),  # kept for signature compatibility; handled downstream
 )
 def compute_hits_store(
     _n_intervals,
@@ -1168,9 +1169,6 @@ def compute_hits_store(
         end_time=None,
     ).sort_values("score", ascending=False)
 
-    if len(hits_filtered) > max_hits:
-        hits_filtered = hits_filtered.head(max_hits)
-
     return hits_filtered.to_dict("records")
 
 
@@ -1180,8 +1178,9 @@ def compute_hits_store(
     Input("store-hits", "data"),
     Input("overlay-checklist", "value"),
     Input("chart-4h", "relayoutData"),
+    Input("max-hits-slider", "value"),
 )
-def update_charts(hits_data, overlay_values, relayout):
+def update_charts(hits_data, overlay_values, relayout, max_hits):
     if overlay_values is None:
         overlay_values = []
     ohlc_4h, ohlc_5m, _, _ = _load_all_data()
@@ -1218,6 +1217,8 @@ def update_charts(hits_data, overlay_values, relayout):
         ]
     else:
         hits_window = hits_df
+    if max_hits is not None and max_hits > 0:
+        hits_window = hits_window.head(max_hits)
 
     zones_enabled = "zones" in overlay_values
     markers_enabled = "markers" in overlay_values
@@ -1336,15 +1337,23 @@ def update_charts(hits_data, overlay_values, relayout):
     Input("store-hits", "data"),
     Input("chart-4h", "relayoutData"),
     Input("chart-4h", "clickData"),
+    Input("max-hits-slider", "value"),
 )
-def update_tables(hits_data, relayout, click_data):
+def update_tables(hits_data, relayout, click_data, max_hits):
     ohlc_4h, _, _, _ = _load_all_data()
     hits_df = pd.DataFrame(hits_data or [])
     if not hits_df.empty:
-        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"]).dt.tz_localize(None)
-        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"]).dt.tz_localize(None)
+        hits_df["start_time"] = (
+            pd.to_datetime(hits_df["start_time"], errors="coerce")
+            .dt.tz_localize(None)
+        )
+        hits_df["ans_time"] = (
+            pd.to_datetime(hits_df["ans_time"], errors="coerce")
+            .dt.tz_localize(None)
+        )
         hits_df["x0"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).min(axis=1)
         hits_df["x1"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).max(axis=1)
+        hits_df = hits_df.dropna(subset=["x0", "x1"])
 
     start_4h, end_4h = get_initial_window_4h(days=3)
     if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
@@ -1364,6 +1373,8 @@ def update_tables(hits_data, relayout, click_data):
         ]
     else:
         hits_window = hits_df
+    if max_hits is not None and max_hits > 0:
+        hits_window = hits_window.head(max_hits)
     pattern_table_data = hits_window.to_dict("records")
 
     candle_summary = ""
