@@ -31,7 +31,7 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
   } = useAppStore();
 
   useCandles(refreshKey);
-  usePatternHits(refreshKey);
+  const { loading: hitsLoading, error: hitsError } = usePatternHits(refreshKey);
   usePatternMeta(undefined, timeframe);
 
   useEffect(() => {
@@ -46,6 +46,8 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
       <CandleChart candles={candles} hits={patternHits} selectedPatternId={selectedPatternId} selectionMode={selectionMode} />
       <PatternHitsTable
         hits={patternHits}
+        loading={hitsLoading}
+        error={hitsError}
         onSelect={(hit) => {
           setSelectedHit(hit);
           setSelectedPatternId(hit.pattern_id);
@@ -61,7 +63,7 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
       </div>
       {candidateWindow && (
         <div className="text-xs text-slate-600">
-          Selected window: {candidateWindow.start_ts} -> {candidateWindow.end_ts}
+          Selected window: {candidateWindow.start_ts} {"->"} {candidateWindow.end_ts}
         </div>
       )}
     </div>

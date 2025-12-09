@@ -24,21 +24,17 @@ def _build_sample_kb() -> KnowledgeBase:
                 "project_codename": "Test",
                 "symbol": "BTCUSDT",
                 "market": "BTCUSDT_PERP",
+                "timeframe_core": "4h",
             },
-            "datasets": [
-                {
-                    "id": "ds4h",
-                    "symbol": "BTCUSDT",
-                    "market": "BTCUSDT_PERP",
+            "datasets": {
+                "ds4h": {
+                    "path_raw": "data/ds4h.parquet",
                     "timeframe": "4h",
-                    "source": ["binance_futures"],
-                    "date_range": {"start": "2024-01-01", "end": "2024-02-01"},
-                    "n_candles": 100,
-                    "file_path": "data/ds4h.parquet",
+                    "rows_raw": 100,
                 }
-            ],
-            "patterns": [
-                {
+            },
+            "patterns": {
+                "P1": {
                     "id": "P1",
                     "name": "Shape continuation",
                     "description": "Test pattern 4h",
@@ -54,7 +50,7 @@ def _build_sample_kb() -> KnowledgeBase:
                     "confidence": 0.72,
                     "regime": "bull",
                 },
-                {
+                "P2": {
                     "id": "P2",
                     "name": "Volatility squeeze",
                     "description": "5m pattern",
@@ -68,7 +64,7 @@ def _build_sample_kb() -> KnowledgeBase:
                     "tags": ["volatility"],
                     "metadata": {"confidence": 0.65, "regime": "bear"},
                 },
-            ],
+            },
         }
     )
 

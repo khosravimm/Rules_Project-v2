@@ -36,22 +36,79 @@ def _pattern_tags(pattern: PatternRule) -> Set[str]:
     return tags
 
 
+def _iter_pattern_rules(kb: KnowledgeBase) -> List[PatternRule]:
+    """Flatten patterns dict (direct or grouped) into PatternRule objects."""
+
+    patterns_out: List[PatternRule] = []
+    for val in kb.patterns.values():
+        if isinstance(val, dict) and "items" in val and isinstance(val["items"], list):
+            for item in val["items"]:
+                if isinstance(item, dict):
+                    patterns_out.append(PatternRule.model_validate(item))
+        elif isinstance(val, dict):
+            patterns_out.append(PatternRule.model_validate(val))
+        elif isinstance(val, PatternRule):
+            patterns_out.append(val)
+    return patterns_out
+
+
+def _coerce_patterns(source: Iterable[PatternRule] | dict) -> List[PatternRule]:
+    """
+    Normalize a patterns payload (dict keyed by group/id or iterable) into PatternRule objects.
+
+    This keeps existing filtering logic compatible with the dict-based YAML layout.
+    """
+
+    patterns_out: List[PatternRule] = []
+    if isinstance(source, dict):
+        for val in source.values():
+            if isinstance(val, dict) and "items" in val and isinstance(val["items"], list):
+                for item in val["items"]:
+                    if isinstance(item, PatternRule):
+                        patterns_out.append(item)
+                    elif isinstance(item, dict):
+                        patterns_out.append(PatternRule.model_validate(item))
+            elif isinstance(val, PatternRule):
+                patterns_out.append(val)
+            elif isinstance(val, dict):
+                patterns_out.append(PatternRule.model_validate(val))
+        return patterns_out
+
+    for p in source:
+        if isinstance(p, PatternRule):
+            patterns_out.append(p)
+        elif isinstance(p, dict):
+            patterns_out.append(PatternRule.model_validate(p))
+    return patterns_out
+
+
 def get_patterns_by_market_timeframe(kb: KnowledgeBase, market: str, timeframe: str) -> List[PatternRule]:
     """Return patterns for a given market/timeframe."""
 
     market_lower = market.lower()
     timeframe_lower = timeframe.lower()
-    dataset_index = {dataset.id: dataset for dataset in kb.datasets}
+    dataset_index = {}
+    for ds_id, ds_val in kb.datasets.items():
+        try:
+            ds_obj = ds_val if isinstance(ds_val, PatternRule) else ds_val  # type: ignore[truthy-bool]
+        except Exception:
+            ds_obj = ds_val
+        dataset_index[ds_id] = ds_obj
+
     results: List[PatternRule] = []
 
-    for pattern in kb.patterns:
-        pattern_timeframe = pattern.timeframe.lower()
+    for pattern in _iter_pattern_rules(kb):
+        pattern_timeframe = (pattern.timeframe or "").lower()
         if pattern_timeframe != timeframe_lower:
             continue
 
-        dataset = dataset_index.get(pattern.dataset_used) if pattern.dataset_used else None
+        ds_used = pattern.dataset_used
+        dataset_market = None
+        if ds_used and ds_used in dataset_index:
+            ds_val = dataset_index[ds_used]
+            dataset_market = getattr(ds_val, "market", None)
         matches_market = False
-        if dataset and dataset.market.lower() == market_lower:
+        if dataset_market and dataset_market.lower() == market_lower:
             matches_market = True
         elif kb.meta.market.lower() == market_lower or kb.meta.symbol.lower() == market_lower:
             matches_market = True
@@ -78,9 +135,9 @@ def filter_patterns(
     if patterns is None:
         if kb is None:
             raise ValueError("Either `kb` or `patterns` must be provided.")
-        patterns_to_filter = list(kb.patterns)
+        patterns_to_filter = _iter_pattern_rules(kb)
     else:
-        patterns_to_filter = list(patterns)
+        patterns_to_filter = _coerce_patterns(patterns)
     filtered: List[PatternRule] = []
 
     required_tags = set(tag.lower() for tag in tags) if tags else set()

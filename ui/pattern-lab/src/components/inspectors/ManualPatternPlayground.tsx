@@ -84,7 +84,7 @@ const ManualPatternPlayground = () => {
         {candidateResult.occurrences.map((o: CandidateOccurrence) => (
           <div key={o.start_ts} className="flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1">
             <div className="text-slate-800 text-sm">
-              {o.start_ts.slice(0, 16)} -> {o.end_ts.slice(0, 16)}
+              {o.start_ts.slice(0, 16)} {"->"} {o.end_ts.slice(0, 16)}
             </div>
             <div className="text-xs text-slate-600">
               sim {(o.similarity * 100).toFixed(1)} | next {o.label_next_dir || "-"} | rr {o.pnl_rr?.toFixed(2) ?? "-"}
@@ -103,7 +103,7 @@ const ManualPatternPlayground = () => {
       ) : (
         <div className="space-y-2 text-slate-800 text-sm">
           <div>
-            Selected window: {candidateWindow.start_ts.slice(0, 16)} -> {candidateWindow.end_ts.slice(0, 16)}
+            Selected window: {candidateWindow.start_ts.slice(0, 16)} {"->"} {candidateWindow.end_ts.slice(0, 16)}
           </div>
           <div className="flex gap-2">
             <button onClick={doSearch} disabled={loading} className="button-primary">

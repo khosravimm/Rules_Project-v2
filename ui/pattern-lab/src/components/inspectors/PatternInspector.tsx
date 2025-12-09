@@ -93,7 +93,7 @@ const PatternInspector = () => {
               onClick={() => setSelectedHit(hit)}
             >
               <span className="text-slate-800 text-sm">
-                {hit.start_ts?.slice(0, 16)} -> {hit.end_ts?.slice(0, 16)}
+                {hit.start_ts?.slice(0, 16)} {"->"} {hit.end_ts?.slice(0, 16)}
               </span>
               <span className="text-xs text-slate-600">
                 lift {hit.lift?.toFixed(2) ?? "-"} | score {hit.accuracy?.toFixed(2) ?? "-"}

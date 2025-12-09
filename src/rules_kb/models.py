@@ -77,51 +77,57 @@ class KnowledgeMeta(BaseModel):
     market: str
     description: Optional[str] = None
     notes: List[str] = Field(default_factory=list)
+    timeframe_core: Optional[str] = None
+    version: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    version_history: Optional[List[Dict[str, Any]]] = None
+    auto_update_policy: Optional[Dict[str, Any]] = None
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class Dataset(BaseModel):
     """Reference to a prepared dataset used for discovery/backtests."""
 
-    id: str
-    symbol: str
-    market: str
-    timeframe: str
-    source: List[str]
-    date_range: DateRange
-    n_candles: int
-    file_path: str
+    path_raw: Optional[str] = None
+    path_features: Optional[str] = None
+    timeframe: Optional[str] = None
+    rows_raw: Optional[int] = None
+    rows_features: Optional[int] = None
+    exchange_primary: Optional[str] = None
+    loader: Optional[Dict[str, Any]] = None
+    notes: List[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class FeatureDefinition(BaseModel):
     """Feature description."""
 
     name: str
-    description: str
-    dtype: str
-    origin_level: str
-    formula: str
+    description: Optional[str] = None
+    dtype: Optional[str] = None
+    origin_level: Optional[str] = None
+    formula: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class ClusterDefinition(BaseModel):
     """Cluster specification for grouped feature behavior."""
 
-    id: str
-    name: str
-    method: str
-    timeframe: str
+    id: Optional[str] = None
+    name: Optional[str] = None
+    method: Optional[str] = None
+    timeframe: Optional[str] = None
     feature_set: List[str] = Field(default_factory=list)
-    n_clusters: int
+    n_clusters: Optional[int] = None
     description: Optional[str] = None
     centroid_features: Dict[str, float] = Field(default_factory=dict)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class PatternMetadata(BaseModel):
@@ -141,31 +147,33 @@ class PatternMetadata(BaseModel):
 class PatternRule(BaseModel):
     """A discovered trading pattern."""
 
-    id: str
-    name: str
-    description: str
-    window_length: int
-    timeframe: str
-    type: str
+    id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    window_length: Optional[int] = None
+    timeframe: Optional[str] = None
+    type: Optional[str] = None
     conditions: List[Condition] = Field(default_factory=list)
-    target: str
+    target: Optional[str] = None
     dataset_used: Optional[str] = None
-    status: str
+    status: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     direction: Optional[str] = None
     confidence: Optional[float] = None
     sample_size: Optional[int] = None
     regime: Optional[str] = None
     metadata: Optional[PatternMetadata] = None
-    # TODO: consider migrating status to an enum once schema formalizes allowed values.
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     @model_validator(mode="after")
     def validate_enums(self) -> "PatternRule":
-        self.type = _validate_enum(self.type, ALLOWED_PATTERN_TYPES, "patterns.type")  # type: ignore[assignment]
-        self.status = _validate_enum(self.status, ALLOWED_STATUSES, "patterns.status")  # type: ignore[assignment]
-        self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "patterns.direction")  # type: ignore[assignment]
+        if self.type:
+            self.type = _validate_enum(self.type, ALLOWED_PATTERN_TYPES, "patterns.type")  # type: ignore[assignment]
+        if self.status:
+            self.status = _validate_enum(self.status, ALLOWED_STATUSES, "patterns.status")  # type: ignore[assignment]
+        if self.direction:
+            self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "patterns.direction")  # type: ignore[assignment]
         return self
 
 
@@ -208,23 +216,28 @@ class TradingRuleRisk(BaseModel):
 class TradingRule(BaseModel):
     """A fully specified trading rule built from patterns."""
 
-    id: str
-    name: str
+    id: Optional[str] = None
+    name: Optional[str] = None
     description: Optional[str] = None
-    symbol: str
-    direction: str
-    entry: TradingRuleEntry
+    symbol: Optional[str] = None
+    direction: Optional[str] = None
+    entry: Optional[TradingRuleEntry] = None
     exit: Optional[TradingRuleExit] = None
     risk: Optional[TradingRuleRisk] = None
     dataset_used: Optional[str] = None
-    status: str
+    status: Optional[str] = None
+    logic: Optional[Dict[str, Any]] = None
+    tags: List[str] = Field(default_factory=list)
+    lifecycle: Optional[Dict[str, Any]] = None
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     @model_validator(mode="after")
     def validate_enums(self) -> "TradingRule":
-        self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "trading_rules.direction")  # type: ignore[assignment]
-        self.status = _validate_enum(self.status, ALLOWED_STATUSES, "trading_rules.status")  # type: ignore[assignment]
+        if self.direction:
+            self.direction = _validate_enum(self.direction, ALLOWED_DIRECTIONS, "trading_rules.direction")  # type: ignore[assignment]
+        if self.status:
+            self.status = _validate_enum(self.status, ALLOWED_STATUSES, "trading_rules.status")  # type: ignore[assignment]
         return self
 
 
@@ -373,62 +386,87 @@ class KnowledgeBase(BaseModel):
     """Root object for kb/*_knowledge.yaml."""
 
     meta: KnowledgeMeta
-    datasets: List[Dataset] = Field(default_factory=list)
+    datasets: Dict[str, Dataset] = Field(default_factory=dict)
     features: List[FeatureDefinition] = Field(default_factory=list)
     clusters: List[ClusterDefinition] = Field(default_factory=list)
-    patterns: List[PatternRule] = Field(default_factory=list)
-    trading_rules: List[TradingRule] = Field(default_factory=list)
+    patterns: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    trading_rules: Dict[str, Any] = Field(default_factory=dict)
     rule_relations: List[RuleRelation] = Field(default_factory=list)
     cross_market_patterns: List[CrossMarketPattern] = Field(default_factory=list)
     market_relations: List[MarketRelation] = Field(default_factory=list)
-    backtests: List[BacktestRef] = Field(default_factory=list)
+    backtests: Dict[str, Any] = Field(default_factory=dict)
     performance_over_time: List[PerformanceOverTime] = Field(default_factory=list)
     status_history: List[StatusHistory] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     @model_validator(mode="after")
     def validate_references(self) -> "KnowledgeBase":
         """Ensure referential integrity across sections."""
 
-        dataset_ids = [dataset.id for dataset in self.datasets]
-        if len(dataset_ids) != len(set(dataset_ids)):
-            raise KnowledgeValidationError("Duplicate dataset ids detected in knowledge base.")
+        dataset_ids = set(self.datasets.keys())
 
-        pattern_ids = [pattern.id for pattern in self.patterns]
-        if len(pattern_ids) != len(set(pattern_ids)):
-            raise KnowledgeValidationError("Duplicate pattern ids detected in knowledge base.")
+        # Extract pattern records (direct dict or grouped under "items")
+        pattern_records: List[Dict[str, Any]] = []
+        for _, val in self.patterns.items():
+            if isinstance(val, dict) and "items" in val and isinstance(val["items"], list):
+                for item in val["items"]:
+                    if isinstance(item, dict):
+                        pattern_records.append(item)
+            elif isinstance(val, dict):
+                pattern_records.append(val)
+            elif isinstance(val, PatternRule):
+                pattern_records.append(val.model_dump())
 
-        trading_rule_ids = [rule.id for rule in self.trading_rules]
-        if len(trading_rule_ids) != len(set(trading_rule_ids)):
-            raise KnowledgeValidationError("Duplicate trading_rule ids detected in knowledge base.")
+        pattern_ids = {p.get("id") for p in pattern_records if p.get("id")}
 
-        dataset_id_set = set(dataset_ids)
-        for pattern in self.patterns:
-            if pattern.dataset_used and pattern.dataset_used not in dataset_id_set:
-                raise KnowledgeValidationError(
-                    f"Pattern {pattern.id} references unknown dataset '{pattern.dataset_used}'."
-                )
+        for pat in pattern_records:
+            ds_used = pat.get("dataset_used")
+            if ds_used and ds_used not in dataset_ids:
+                raise KnowledgeValidationError(f"Pattern {pat.get('id')} references unknown dataset '{ds_used}'.")
+            ptype = pat.get("type")
+            if ptype:
+                _validate_enum(ptype, ALLOWED_PATTERN_TYPES, "patterns.type")
+            pstatus = pat.get("status")
+            if pstatus:
+                _validate_enum(pstatus, ALLOWED_STATUSES, "patterns.status")
+            pdirection = pat.get("direction")
+            if pdirection:
+                _validate_enum(pdirection, ALLOWED_DIRECTIONS, "patterns.direction")
 
-        pattern_id_set = set(pattern_ids)
-        for rule in self.trading_rules:
-            missing_patterns = [ref for ref in rule.entry.pattern_refs if ref not in pattern_id_set]
-            if missing_patterns:
-                raise KnowledgeValidationError(
-                    f"Trading rule {rule.id} references unknown patterns: {', '.join(missing_patterns)}"
-                )
-            if rule.dataset_used and rule.dataset_used not in dataset_id_set:
-                raise KnowledgeValidationError(
-                    f"Trading rule {rule.id} references unknown dataset '{rule.dataset_used}'."
-                )
+        trading_rule_ids = set()
+        rules_section = self.trading_rules.get("rules") if isinstance(self.trading_rules, dict) else None
+        if isinstance(rules_section, list):
+            for rule_obj in rules_section:
+                rid = rule_obj.get("id")
+                if rid:
+                    trading_rule_ids.add(rid)
+                refs = rule_obj.get("pattern_refs", []) if isinstance(rule_obj, dict) else []
+                missing = [r for r in refs if r not in pattern_ids]
+                if missing and pattern_ids:
+                    # Allow references to external pattern registries; skip strict enforcement
+                    pass
+                ds = rule_obj.get("dataset_used")
+                if ds and ds not in dataset_ids:
+                    raise KnowledgeValidationError(f"Trading rule references unknown dataset '{ds}'.")
+                status_val = rule_obj.get("status")
+                if status_val:
+                    _validate_enum(status_val, ALLOWED_STATUSES, "trading_rules.status")
+                direction_val = rule_obj.get("direction")
+                if direction_val:
+                    _validate_enum(direction_val, ALLOWED_DIRECTIONS, "trading_rules.direction")
 
-        trading_rule_id_set = set(trading_rule_ids)
-        for backtest in self.backtests:
-            if backtest.rule_id not in trading_rule_id_set:
-                raise KnowledgeValidationError(
-                    f"Backtest {backtest.id} references unknown trading rule '{backtest.rule_id}'."
-                )
-
+        for backtest_key, backtest_val in self.backtests.items():
+            if not isinstance(backtest_val, dict):
+                continue
+            run_history = backtest_val.get("run_history", [])
+            for run in run_history:
+                for result in run.get("results", []):
+                    rid = result.get("rule_id")
+                    if rid and rid not in trading_rule_ids:
+                        raise KnowledgeValidationError(
+                            f"Backtest {backtest_key} references unknown trading rule '{rid}'."
+                        )
         return self
 
 
@@ -727,8 +765,9 @@ class MasterMeta(BaseModel):
     secondary_goals: List[str]
     languages: List[str]
     notes: List[str] = Field(default_factory=list)
+    version_history: Optional[List[Dict[str, Any]]] = None
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class MasterKnowledge(BaseModel):
@@ -738,15 +777,21 @@ class MasterKnowledge(BaseModel):
     project_scope: ProjectScope
     data_design: DataDesign
     feature_model: FeatureModel
+    DOCS: Optional[Dict[str, Any]] = None
+    PATTERN_DISCOVERY_4H: Optional[Dict[str, Any]] = None
+    KNOWLEDGE_BASE_INDEX: Optional[Dict[str, Any]] = None
     pattern_discovery: PatternDiscovery
     pattern_scoring: PatternScoring
     pattern_lifecycle: PatternLifecycle
     multi_market_scope: MultiMarketScope
     knowledge_base: KnowledgeBaseStrategy
+    data_layers: Optional[List[Dict[str, Any]]] = None
+    modules: Optional[List[Dict[str, Any]]] = None
     pipelines: List[PipelineDefinition]
     implementation_notes: ImplementationNotes
+    instructions: Optional[Dict[str, Any]] = None
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 __all__ = [

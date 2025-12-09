@@ -15,6 +15,8 @@ def test_load_existing_knowledge():
     kb = load_knowledge(kb_path)
     assert kb.meta.symbol == "BTCUSDT"
     assert kb.meta.market == "BTCUSDT_PERP"
+    assert kb.meta.timeframe_core == "4h"
+    assert "datasets" in kb.model_dump()
 
 
 def test_load_master_knowledge():
@@ -22,6 +24,7 @@ def test_load_master_knowledge():
     master = load_master_knowledge(master_path)
     assert master.project_scope.market_primary == "BTCUSDT_PERP"
     assert "4h" in master.project_scope.timeframes_core
+    assert master.meta.version_history is not None
 
 
 def test_invalid_pattern_dataset_reference(tmp_path: Path):
@@ -36,20 +39,14 @@ def test_invalid_pattern_dataset_reference(tmp_path: Path):
               symbol: "TEST"
               market: "TEST_PERP"
             datasets:
-              - id: "ds1"
-                symbol: "TEST"
-                market: "TEST_PERP"
+              ds1:
+                path_raw: data/test.parquet
                 timeframe: "4h"
-                source: ["demo"]
-                date_range:
-                  start: "2024-01-01"
-                  end: "2024-02-01"
-                n_candles: 10
-                file_path: "data/test.parquet"
+                rows_raw: 10
             features: []
             clusters: []
             patterns:
-              - id: "p1"
+              p1:
                 name: "Bad reference"
                 description: "pattern references missing dataset"
                 window_length: 3
@@ -63,11 +60,11 @@ def test_invalid_pattern_dataset_reference(tmp_path: Path):
                 dataset_used: "unknown_ds"
                 status: "active"
                 tags: []
-            trading_rules: []
+            trading_rules: {}
             rule_relations: []
             cross_market_patterns: []
             market_relations: []
-            backtests: []
+            backtests: {}
             performance_over_time: []
             status_history: []
             """
@@ -90,20 +87,13 @@ def test_invalid_enum_values(tmp_path: Path):
               symbol: "TEST"
               market: "TEST_PERP"
             datasets:
-              - id: "ds1"
-                symbol: "TEST"
-                market: "TEST_PERP"
+              ds1:
+                path_raw: data/test.parquet
                 timeframe: "4h"
-                source: ["demo"]
-                date_range:
-                  start: "2024-01-01"
-                  end: "2024-02-01"
-                n_candles: 10
-                file_path: "data/test.parquet"
             features: []
             clusters: []
             patterns:
-              - id: "p1"
+              p1:
                 name: "Bad enum"
                 description: "pattern with invalid status and type"
                 window_length: 3
@@ -118,28 +108,29 @@ def test_invalid_enum_values(tmp_path: Path):
                 status: "not_a_status"
                 tags: []
             trading_rules:
-              - id: "r1"
-                name: "Rule with bad direction"
-                description: "invalid direction"
-                symbol: "TEST"
-                direction: "sideways"
-                entry:
-                  pattern_refs: ["p1"]
-                  extra_conditions: []
-                exit:
-                  tp_sl:
-                    tp_multiple: 1.0
-                    sl_multiple: 1.0
-                    tstop_n_bars: 2
-                risk:
-                  max_leverage: 5
-                  position_size_factor: 0.5
-                dataset_used: "ds1"
-                status: "candidate"
+              rules:
+                - id: "r1"
+                  name: "Rule with bad direction"
+                  description: "invalid direction"
+                  symbol: "TEST"
+                  direction: "sideways"
+                  entry:
+                    pattern_refs: ["p1"]
+                    extra_conditions: []
+                  exit:
+                    tp_sl:
+                      tp_multiple: 1.0
+                      sl_multiple: 1.0
+                      tstop_n_bars: 2
+                  risk:
+                    max_leverage: 5
+                    position_size_factor: 0.5
+                  dataset_used: "ds1"
+                  status: "candidate"
             rule_relations: []
             cross_market_patterns: []
             market_relations: []
-            backtests: []
+            backtests: {}
             performance_over_time: []
             status_history: []
             """
