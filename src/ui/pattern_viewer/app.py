@@ -1222,6 +1222,57 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
 
     zones_enabled = "zones" in overlay_values
     markers_enabled = "markers" in overlay_values
+    heatmap_enabled = "heatmap" in overlay_values
+
+    def build_density_shapes(df_prices, hits_subset, default_delta):
+        if df_prices.empty or hits_subset.empty:
+            return []
+        times = df_prices["time"]
+        if times.empty:
+            return []
+        y0 = df_prices["low"].min()
+        y1 = df_prices["high"].max()
+        if pd.isna(y0) or pd.isna(y1):
+            return []
+        counts = []
+        for t in times:
+            counts.append(int(((hits_subset["x0"] <= t) & (hits_subset["x1"] >= t)).sum()))
+        if not counts:
+            return []
+        max_count = max(counts)
+        if max_count <= 0:
+            return []
+        delta = df_prices["time"].diff().median()
+        if pd.isna(delta) or delta <= pd.Timedelta(0):
+            delta = default_delta
+        shapes = []
+        for idx, t in enumerate(times):
+            count = counts[idx]
+            if count <= 0:
+                continue
+            if idx + 1 < len(times):
+                x1 = times.iloc[idx + 1]
+            else:
+                x1 = t + delta
+            if pd.isna(x1) or x1 <= t:
+                x1 = t + delta
+            density = count / max_count
+            alpha = 0.06 + 0.24 * density
+            shapes.append(
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="y",
+                    x0=t,
+                    x1=x1,
+                    y0=y0,
+                    y1=y1,
+                    fillcolor=f"rgba(120, 120, 200, {alpha})",
+                    line={"color": "rgba(120, 120, 200, 0)", "width": 0},
+                    layer="below",
+                )
+            )
+        return shapes
 
     shapes_4h = []
     if zones_enabled and not df_4h.empty and not hits_window.empty:
@@ -1266,6 +1317,22 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
                     layer="below",
                 )
             )
+
+    if heatmap_enabled:
+        shapes_4h.extend(
+            build_density_shapes(
+                df_4h,
+                hits_window[hits_window["timeframe"] == "4h"],
+                timedelta(hours=4),
+            )
+        )
+        shapes_5m.extend(
+            build_density_shapes(
+                df_5m,
+                hits_window[hits_window["timeframe"] == "5m"],
+                timedelta(minutes=5),
+            )
+        )
 
     if markers_enabled and not hits_window.empty:
         def marker_trace(df_prices, subset, name):
