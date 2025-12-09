@@ -1200,6 +1200,20 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
         except Exception:
             pass
 
+    if not hits_df.empty and "x0" in hits_df:
+        hits_window = hits_df[
+            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
+        ]
+    else:
+        hits_window = hits_df
+    if max_hits is not None and max_hits > 0 and len(hits_window) > max_hits:
+        hits_window = (
+            hits_window.sort_values("score", ascending=False, na_position="last")
+            .head(max_hits)
+        )
+    if max_hits is not None and max_hits > 0:
+        hits_window = hits_window.head(max_hits)
+
     df_4h = ohlc_4h[
         (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
     ].copy()
@@ -1208,43 +1222,97 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
         (ohlc_5m["time"] >= start_4h) & (ohlc_5m["time"] <= end_4h)
     ].copy()
 
-    fig_4h = make_candlestick_figure(df_4h, "BTCUSDT – 4H Candles")
-    fig_5m = make_candlestick_figure(df_5m, "BTCUSDT – 5M Candles")
-
-    if not hits_df.empty and "x0" in hits_df:
-        hits_window = hits_df[
-            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
-        ]
-    else:
-        hits_window = hits_df
-    if max_hits is not None and max_hits > 0:
-        hits_window = hits_window.head(max_hits)
+    fig_4h = make_candlestick_figure(df_4h, "BTCUSDT - 4H Candles")
+    fig_5m = make_candlestick_figure(df_5m, "BTCUSDT - 5M Candles")
 
     zones_enabled = "zones" in overlay_values
     markers_enabled = "markers" in overlay_values
     heatmap_enabled = "heatmap" in overlay_values
 
-    def build_density_shapes(df_prices, hits_subset, default_delta):
+    def compute_bounds(df_prices):
+        if df_prices.empty:
+            return None, None
+        y0 = df_prices["low"].min()
+        y1 = df_prices["high"].max()
+        if pd.isna(y0) or pd.isna(y1):
+            return None, None
+        return y0, y1
+
+    def compute_delta(df_prices, fallback):
+        if df_prices.empty:
+            return fallback
+        delta = df_prices["time"].diff().median()
+        if pd.isna(delta) or delta <= pd.Timedelta(0):
+            return fallback
+        return delta
+
+    def build_density_shapes(df_prices, hits_subset, delta, y_bounds):
         if df_prices.empty or hits_subset.empty:
+            return []
+        y0, y1 = y_bounds
+        if y0 is None or y1 is None:
             return []
         times = df_prices["time"]
         if times.empty:
             return []
-        y0 = df_prices["low"].min()
-        y1 = df_prices["high"].max()
-        if pd.isna(y0) or pd.isna(y1):
+
+        def rgba_from_gradient(density: float) -> str:
+            # Gradient stops: low -> mid -> high
+            stops = [
+                (0.0, (200, 200, 255, 0.05)),
+                (0.5, (160, 160, 255, 0.15)),
+                (1.0, (120, 120, 240, 0.32)),
+            ]
+            if density <= stops[0][0]:
+                r, g, b, a = stops[0][1]
+            elif density >= stops[-1][0]:
+                r, g, b, a = stops[-1][1]
+            else:
+                # find segment
+                for i in range(len(stops) - 1):
+                    x0, c0 = stops[i]
+                    x1, c1 = stops[i + 1]
+                    if x0 <= density <= x1:
+                        t = (density - x0) / (x1 - x0)
+                        r = round(c0[0] + (c1[0] - c0[0]) * t)
+                        g = round(c0[1] + (c1[1] - c0[1]) * t)
+                        b = round(c0[2] + (c1[2] - c0[2]) * t)
+                        a = c0[3] + (c1[3] - c0[3]) * t
+                        break
+                else:
+                    r, g, b, a = stops[-1][1]
+            return f"rgba({r}, {g}, {b}, {a})"
+
+        # Build cumulative diff array for O(N) active count across candles
+        diff = {}
+        eps = pd.Timedelta(microseconds=1)
+        for _, row in hits_subset.iterrows():
+            start = row.get("x0")
+            end = row.get("x1")
+            if pd.isna(start) or pd.isna(end):
+                continue
+            diff[start] = diff.get(start, 0) + 1
+            diff[end + eps] = diff.get(end + eps, 0) - 1
+
+        if not diff:
             return []
+
+        events = sorted(diff.items(), key=lambda kv: kv[0])
+        evt_idx = 0
+        active = 0
         counts = []
         for t in times:
-            counts.append(int(((hits_subset["x0"] <= t) & (hits_subset["x1"] >= t)).sum()))
+            while evt_idx < len(events) and events[evt_idx][0] <= t:
+                active += events[evt_idx][1]
+                evt_idx += 1
+            counts.append(active)
+
         if not counts:
             return []
+
         max_count = max(counts)
         if max_count <= 0:
             return []
-        delta = df_prices["time"].diff().median()
-        if pd.isna(delta) or delta <= pd.Timedelta(0):
-            delta = default_delta
         shapes = []
         for idx, t in enumerate(times):
             count = counts[idx]
@@ -1257,7 +1325,6 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
             if pd.isna(x1) or x1 <= t:
                 x1 = t + delta
             density = count / max_count
-            alpha = 0.06 + 0.24 * density
             shapes.append(
                 dict(
                     type="rect",
@@ -1267,71 +1334,76 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
                     x1=x1,
                     y0=y0,
                     y1=y1,
-                    fillcolor=f"rgba(120, 120, 200, {alpha})",
-                    line={"color": "rgba(120, 120, 200, 0)", "width": 0},
+                    fillcolor=rgba_from_gradient(density),
+                    line={"color": "rgba(0, 0, 0, 0)", "width": 0},
                     layer="below",
                 )
             )
         return shapes
 
-    shapes_4h = []
+    y_bounds_4h = compute_bounds(df_4h)
+    y_bounds_5m = compute_bounds(df_5m)
+    delta_4h = compute_delta(df_4h, timedelta(hours=4))
+    delta_5m = compute_delta(df_5m, timedelta(minutes=5))
+
+    shapes_zones_4h = []
     if zones_enabled and not df_4h.empty and not hits_window.empty:
-        y0_4h = df_4h["low"].min()
-        y1_4h = df_4h["high"].max()
-        hits_4h_zone = hits_window[hits_window["timeframe"] == "4h"]
-        for _, row in hits_4h_zone.iterrows():
-            rgb = _pattern_rgb(row["pattern_type"])
-            shapes_4h.append(
-                dict(
-                    type="rect",
-                    xref="x",
-                    yref="y",
-                    x0=row["x0"],
-                    x1=row["x1"],
-                    y0=y0_4h,
-                    y1=y1_4h,
-                    fillcolor=_rgba_str(rgb, 0.18),
-                    line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
-                    layer="below",
+        y0_4h, y1_4h = y_bounds_4h
+        if y0_4h is not None and y1_4h is not None:
+            hits_4h_zone = hits_window[hits_window["timeframe"] == "4h"]
+            for _, row in hits_4h_zone.iterrows():
+                rgb = _pattern_rgb(row["pattern_type"])
+                shapes_zones_4h.append(
+                    dict(
+                        type="rect",
+                        xref="x",
+                        yref="y",
+                        x0=row["x0"],
+                        x1=row["x1"],
+                        y0=y0_4h,
+                        y1=y1_4h,
+                        fillcolor=_rgba_str(rgb, 0.18),
+                        line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
+                        layer="below",
+                    )
                 )
-            )
 
-    shapes_5m = []
+    shapes_zones_5m = []
     if zones_enabled and not df_5m.empty and not hits_window.empty:
-        y0_5m = df_5m["low"].min()
-        y1_5m = df_5m["high"].max()
-        hits_5m_zone = hits_window[hits_window["timeframe"] == "5m"]
-        for _, row in hits_5m_zone.iterrows():
-            rgb = _pattern_rgb(row["pattern_type"])
-            shapes_5m.append(
-                dict(
-                    type="rect",
-                    xref="x",
-                    yref="y",
-                    x0=row["x0"],
-                    x1=row["x1"],
-                    y0=y0_5m,
-                    y1=y1_5m,
-                    fillcolor=_rgba_str(rgb, 0.18),
-                    line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
-                    layer="below",
+        y0_5m, y1_5m = y_bounds_5m
+        if y0_5m is not None and y1_5m is not None:
+            hits_5m_zone = hits_window[hits_window["timeframe"] == "5m"]
+            for _, row in hits_5m_zone.iterrows():
+                rgb = _pattern_rgb(row["pattern_type"])
+                shapes_zones_5m.append(
+                    dict(
+                        type="rect",
+                        xref="x",
+                        yref="y",
+                        x0=row["x0"],
+                        x1=row["x1"],
+                        y0=y0_5m,
+                        y1=y1_5m,
+                        fillcolor=_rgba_str(rgb, 0.18),
+                        line={"color": _rgba_str(rgb, 0.35), "width": 0.4},
+                        layer="below",
+                    )
                 )
-            )
 
+    shapes_heatmap_4h = []
+    shapes_heatmap_5m = []
     if heatmap_enabled:
-        shapes_4h.extend(
-            build_density_shapes(
-                df_4h,
-                hits_window[hits_window["timeframe"] == "4h"],
-                timedelta(hours=4),
-            )
+        shapes_heatmap_4h = build_density_shapes(
+            df_4h,
+            hits_window[hits_window["timeframe"] == "4h"],
+            delta_4h,
+            y_bounds_4h,
         )
-        shapes_5m.extend(
-            build_density_shapes(
-                df_5m,
-                hits_window[hits_window["timeframe"] == "5m"],
-                timedelta(minutes=5),
-            )
+        shapes_heatmap_5m = build_density_shapes(
+            df_5m,
+            hits_window[hits_window["timeframe"] == "5m"],
+            delta_5m,
+            y_bounds_5m,
         )
 
     if markers_enabled and not hits_window.empty:
@@ -1388,10 +1460,19 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
         if trace_5m_markers:
             fig_5m.add_trace(trace_5m_markers)
 
-    if shapes_4h:
-        fig_4h.update_layout(shapes=shapes_4h)
-    if shapes_5m:
-        fig_5m.update_layout(shapes=shapes_5m)
+    shapes_final_4h = []
+    shapes_final_5m = []
+    if zones_enabled:
+        shapes_final_4h.extend(shapes_zones_4h)
+        shapes_final_5m.extend(shapes_zones_5m)
+    if heatmap_enabled:
+        shapes_final_4h.extend(shapes_heatmap_4h)
+        shapes_final_5m.extend(shapes_heatmap_5m)
+
+    if shapes_final_4h:
+        fig_4h.update_layout(shapes=shapes_final_4h)
+    if shapes_final_5m:
+        fig_5m.update_layout(shapes=shapes_final_5m)
 
     return fig_4h, fig_5m
 
