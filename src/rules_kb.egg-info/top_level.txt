@@ -1,2 +1,10 @@
+api
+core
 data
+features
+infra
+kb
+patterns
+reports
 rules_kb
+ui

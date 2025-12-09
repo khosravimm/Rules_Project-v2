@@ -125,6 +125,25 @@ class CreatePatternResponse(BaseModel):
     candidate_summary: Optional[CandidateSummary] = None
 
 
+# ---------------------------------------------------------------------------
+# Pattern metrics
+# ---------------------------------------------------------------------------
+class PatternMetrics(BaseModel):
+    pattern_id: str
+    timeframe: Optional[str] = None
+    total_hits: int
+    winrate: Optional[float] = None
+    avg_return: Optional[float] = None
+    median_return: Optional[float] = None
+    avg_lift: Optional[float] = None
+    avg_score: Optional[float] = None
+    avg_stability: Optional[float] = None
+
+
+class PatternMetricsResponse(BaseModel):
+    metrics: PatternMetrics
+
+
 __all__ = [
     "Candle",
     "CandlesResponse",
@@ -139,5 +158,6 @@ __all__ = [
     "CandidateOccurrenceOut",
     "CandidateSummary",
     "WindowSelection",
+    "PatternMetrics",
+    "PatternMetricsResponse",
 ]
-

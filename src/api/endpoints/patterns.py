@@ -17,6 +17,8 @@ from api.schemas import (
     CreatePatternResponse,
     PatternMeta,
     PatternMetaResponse,
+    PatternMetrics,
+    PatternMetricsResponse,
 )
 from api.services.candidate_search import search_similar_windows
 from api.services.data_access import (
@@ -27,6 +29,7 @@ from api.services.data_access import (
     generate_pattern_id,
     load_pattern_meta,
 )
+from api.services.pattern_service import compute_pattern_metrics
 
 router = APIRouter()
 
@@ -63,6 +66,13 @@ def get_pattern(pattern_id: str, timeframe: Optional[str] = None) -> PatternMeta
     if tf and meta.get("timeframe_origin") and meta.get("timeframe_origin") != tf:
         raise HTTPException(status_code=404, detail=f"pattern_id '{pattern_id}' not found for timeframe {tf}")
     return PatternMeta.model_validate(meta)
+
+
+@router.get("/api/patterns/{pattern_id}/metrics", response_model=PatternMetricsResponse)
+def pattern_metrics(pattern_id: str, timeframe: Optional[str] = None) -> PatternMetricsResponse:
+    tf = timeframe.lower() if timeframe else None
+    metrics_dict = compute_pattern_metrics(pattern_id, tf)
+    return PatternMetricsResponse(metrics=PatternMetrics(**metrics_dict))
 
 
 @router.post("/api/patterns/search_candidate", response_model=CandidateSearchResponse)
