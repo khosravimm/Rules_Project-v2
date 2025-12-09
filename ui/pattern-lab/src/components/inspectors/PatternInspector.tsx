@@ -25,11 +25,27 @@ const PatternInspector = () => {
     };
   }, [occurrences]);
 
+  const sparklinePoints = useMemo(() => {
+    if (!occurrences.length) return "";
+    const times = occurrences.map((h) => new Date(h.start_ts || h.entry_candle_ts || "").getTime()).filter((t) => !Number.isNaN(t));
+    const minT = Math.min(...times);
+    const maxT = Math.max(...times);
+    const span = maxT - minT || 1;
+    return times
+      .sort((a, b) => a - b)
+      .map((t, idx) => {
+        const x = (idx / Math.max(times.length - 1, 1)) * 100;
+        const y = 40 - ((t - minT) / span) * 30;
+        return `${x},${y}`;
+      })
+      .join(" ");
+  }, [occurrences]);
+
   if (!selectedPatternId) {
     return (
       <div className="glass-panel p-4">
         <p className="section-title mb-2">Pattern Inspector</p>
-        <p className="text-slate-300">Select a pattern from the table to inspect metadata.</p>
+        <p className="text-slate-700">Select a pattern from the table to inspect metadata.</p>
       </div>
     );
   }
@@ -39,8 +55,8 @@ const PatternInspector = () => {
       <p className="section-title mb-2">Pattern Inspector</p>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-white text-lg">{meta?.name || selectedPatternId}</h3>
-          <p className="text-slate-300 text-sm max-w-xl">{meta?.description || "No description available."}</p>
+          <h3 className="text-slate-900 text-lg">{meta?.name || selectedPatternId}</h3>
+          <p className="text-slate-600 text-sm max-w-xl">{meta?.description || "No description available."}</p>
           <div className="flex flex-wrap gap-2 mt-2">
             <span className="chip">{meta?.pattern_type || "unknown"}</span>
             <span className="chip">Strength {meta?.strength_level || "-"}</span>
@@ -53,25 +69,34 @@ const PatternInspector = () => {
           </div>
         </div>
         {stats && (
-          <div className="text-right text-sm text-slate-200">
+          <div className="text-right text-sm text-slate-800">
             <div>Hits: {stats.hits}</div>
             <div>Avg lift: {stats.avgLift.toFixed(2)}</div>
             <div>Avg score: {stats.avgScore.toFixed(2)}</div>
           </div>
         )}
       </div>
-      <div className="mt-4">
-        <p className="text-slate-200 mb-2">Occurrences</p>
+      {sparklinePoints && (
+        <div className="mt-3">
+          <svg width="100%" height="48" viewBox="0 0 100 48" preserveAspectRatio="none">
+            <polyline fill="none" stroke="#22c55e" strokeWidth="1.5" points={sparklinePoints} />
+          </svg>
+        </div>
+      )}
+      <div className="mt-3">
+        <p className="text-slate-700 mb-2">Occurrences</p>
         <div className="max-h-52 overflow-y-auto pr-2 space-y-1">
           {occurrences.map((hit) => (
             <div
               key={`${hit.pattern_id}-${hit.start_ts}`}
-              className="flex items-center justify-between bg-white/5 rounded-lg px-2 py-1 cursor-pointer hover:bg-white/10"
+              className="flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1 cursor-pointer hover:bg-slate-100"
               onClick={() => setSelectedHit(hit)}
             >
-              <span className="text-slate-100 text-sm">{hit.start_ts?.slice(0, 16)} → {hit.end_ts?.slice(0, 16)}</span>
-              <span className="text-xs text-slate-300">
-                lift {hit.lift?.toFixed(2) ?? "-"} · score {hit.accuracy?.toFixed(2) ?? "-"}
+              <span className="text-slate-800 text-sm">
+                {hit.start_ts?.slice(0, 16)} -> {hit.end_ts?.slice(0, 16)}
+              </span>
+              <span className="text-xs text-slate-600">
+                lift {hit.lift?.toFixed(2) ?? "-"} | score {hit.accuracy?.toFixed(2) ?? "-"}
               </span>
             </div>
           ))}

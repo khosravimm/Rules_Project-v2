@@ -11,11 +11,11 @@ const PatternListTable = ({ patterns }: Props) => {
     <div className="glass-panel p-4">
       <div className="flex items-center justify-between mb-2">
         <p className="section-title">Pattern KB</p>
-        <p className="text-slate-300 text-sm">{patterns.length} patterns</p>
+        <p className="text-slate-600 text-sm">{patterns.length} patterns</p>
       </div>
       <div className="max-h-80 overflow-y-auto pr-2">
-        <table className="w-full text-sm text-slate-100">
-          <thead className="text-slate-300">
+        <table className="w-full text-sm text-slate-800">
+          <thead className="text-slate-500">
             <tr>
               <th className="text-left pb-2">ID</th>
               <th className="text-left pb-2">Type</th>
@@ -27,7 +27,7 @@ const PatternListTable = ({ patterns }: Props) => {
             {patterns.map((p) => (
               <tr
                 key={p.pattern_id}
-                className="hover:bg-white/5 cursor-pointer"
+                className="hover:bg-slate-50 cursor-pointer"
                 onClick={() => setSelectedPatternId(p.pattern_id)}
               >
                 <td className="py-1">{p.pattern_id}</td>

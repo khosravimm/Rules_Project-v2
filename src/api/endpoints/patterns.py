@@ -53,6 +53,18 @@ def get_pattern_meta(
     return PatternMetaResponse(patterns=patterns)
 
 
+@router.get("/api/patterns/{pattern_id}", response_model=PatternMeta)
+def get_pattern(pattern_id: str, timeframe: Optional[str] = None) -> PatternMeta:
+    tf = timeframe.lower() if timeframe else None
+    meta_map = load_pattern_meta(tf)
+    meta = meta_map.get(pattern_id)
+    if not meta:
+        raise HTTPException(status_code=404, detail=f"pattern_id '{pattern_id}' not found")
+    if tf and meta.get("timeframe_origin") and meta.get("timeframe_origin") != tf:
+        raise HTTPException(status_code=404, detail=f"pattern_id '{pattern_id}' not found for timeframe {tf}")
+    return PatternMeta.model_validate(meta)
+
+
 @router.post("/api/patterns/search_candidate", response_model=CandidateSearchResponse)
 def search_candidate(req: CandidateSearchRequest) -> CandidateSearchResponse:
     tf = req.timeframe.lower()
@@ -158,4 +170,3 @@ def create_pattern(req: CreatePatternRequest) -> CreatePatternResponse:
 
     summary = CandidateSummary(**summary_dict)
     return CreatePatternResponse(pattern=pattern_meta, candidate_summary=summary)
-

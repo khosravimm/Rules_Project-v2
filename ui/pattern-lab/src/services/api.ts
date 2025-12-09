@@ -39,13 +39,14 @@ export const fetchCandles = async (timeframe: Timeframe, start?: string, end?: s
 
 export const fetchPatternHits = async (
   timeframe: Timeframe,
-  filters: { patternType?: string; direction?: string; start?: string | null; end?: string | null } = {},
+  filters: { patternType?: string; direction?: string; start?: string | null; end?: string | null; strength?: string } = {},
 ) => {
   const params: Record<string, string> = { timeframe };
   if (filters.patternType) params.pattern_type = filters.patternType;
   if (filters.direction && filters.direction !== "all") params.direction = filters.direction;
   if (filters.start) params.start = filters.start;
   if (filters.end) params.end = filters.end;
+  if (filters.strength) params.strength_level = filters.strength;
   const { data } = await api.get<PatternHitsResponse>("/api/pattern-hits", { params });
   return data;
 };
@@ -85,4 +86,3 @@ export const createPatternFromCandidate = async (payload: {
   );
   return data;
 };
-

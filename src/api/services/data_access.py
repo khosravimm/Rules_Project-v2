@@ -18,6 +18,7 @@ from api.config import (
     PATTERN_KB_PATH,
     SUPPORTED_TIMEFRAMES,
 )
+from core.candles import derive_direction_from_candles
 
 
 def _to_utc(ts: Any) -> pd.Timestamp:
@@ -40,6 +41,10 @@ def _isoformat(ts: pd.Timestamp | datetime | None) -> Optional[str]:
     return datetime.fromisoformat(str(ts)).astimezone().isoformat()
 
 
+def _ensure_datetime(series: pd.Series) -> pd.Series:
+    return pd.to_datetime(series, utc=True, errors="coerce")
+
+
 # ---------------------------------------------------------------------------
 # Data frame loaders (cached)
 # ---------------------------------------------------------------------------
@@ -54,7 +59,7 @@ def load_feature_frame(timeframe: str) -> pd.DataFrame:
     df = pd.read_parquet(path)
     if "open_time" not in df.columns:
         raise RuntimeError(f"open_time column missing in {path}")
-    df["open_time"] = pd.to_datetime(df["open_time"], utc=True, errors="coerce")
+    df["open_time"] = _ensure_datetime(df["open_time"])
     df = df.dropna(subset=["open_time"]).sort_values("open_time").reset_index(drop=True)
     return df
 
@@ -70,7 +75,7 @@ def load_raw_candles(timeframe: str) -> pd.DataFrame:
     df = pd.read_parquet(path)
     if "open_time" not in df.columns:
         raise RuntimeError(f"open_time column missing in {path}")
-    df["open_time"] = pd.to_datetime(df["open_time"], utc=True, errors="coerce")
+    df["open_time"] = _ensure_datetime(df["open_time"])
     df = df.dropna(subset=["open_time"]).sort_values("open_time").reset_index(drop=True)
     return df
 
@@ -95,7 +100,7 @@ def load_candles_between(
         ].copy()
 
     if df is None:
-        return pd.DataFrame(columns=["open_time", "open", "high", "low", "close", "volume"])
+        raise FileNotFoundError(f"No candle data found for timeframe {timeframe}")
 
     if start is not None:
         df = df[df["open_time"] >= start]
@@ -117,13 +122,30 @@ def load_pattern_hits_frame(timeframe: str) -> pd.DataFrame:
     except Exception:
         # corrupted or placeholder parquet
         return pd.DataFrame()
-    for col in ("answer_time", "start_time", "end_time"):
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], utc=True, errors="coerce")
-    df["x0"] = pd.DataFrame({"a": df.get("start_time"), "b": df.get("end_time")}).min(axis=1)
-    df["x1"] = pd.DataFrame({"a": df.get("start_time"), "b": df.get("end_time")}).max(axis=1)
+
+    cols = {c.lower(): c for c in df.columns}
+    ans_col = cols.get("answer_time") or cols.get("ans_time")
+    start_col = cols.get("start_time") or cols.get("window_start") or cols.get("start_ts")
+    end_col = cols.get("end_time") or cols.get("window_end") or cols.get("ans_time")
+
+    if ans_col:
+        df["answer_time"] = _ensure_datetime(df[ans_col])
+    if start_col:
+        df["start_time"] = _ensure_datetime(df[start_col])
+    if end_col:
+        df["end_time"] = _ensure_datetime(df[end_col])
+
+    df["x0"] = pd.DataFrame(
+        {"a": df.get("start_time"), "b": df.get("end_time"), "c": df.get("answer_time")}
+    ).min(axis=1)
+    df["x1"] = pd.DataFrame(
+        {"a": df.get("start_time"), "b": df.get("end_time"), "c": df.get("answer_time")}
+    ).max(axis=1)
     df = df.dropna(subset=["x0", "x1"])
-    return df.sort_values("answer_time").reset_index(drop=True)
+    sort_col = "answer_time" if "answer_time" in df.columns else None
+    if sort_col:
+        df = df.sort_values(sort_col)
+    return df.reset_index(drop=True)
 
 
 @lru_cache(maxsize=2)
@@ -188,24 +210,6 @@ def append_pattern_to_kb(entry: Dict[str, Any]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Derived helpers
 # ---------------------------------------------------------------------------
-def derive_direction_from_candles(
-    answer_time: pd.Timestamp,
-    candles: pd.DataFrame,
-) -> Optional[str]:
-    """Infer direction from the answer candle close/open."""
-    if candles.empty or pd.isna(answer_time):
-        return None
-    row = candles[candles["open_time"] == answer_time]
-    if row.empty:
-        return None
-    r = float(row.iloc[0]["close"] - row.iloc[0]["open"])
-    if r > 0:
-        return "long"
-    if r < 0:
-        return "short"
-    return "neutral"
-
-
 def normalize_hits_dataframe(
     timeframe: str,
     df_hits: pd.DataFrame,
@@ -214,6 +218,7 @@ def normalize_hits_dataframe(
     pattern_type: Optional[str],
     pattern_id: Optional[str],
     direction: Optional[str],
+    strength_level: Optional[str] = None,
 ) -> pd.DataFrame:
     """Filter and normalize pattern hits dataframe."""
     if df_hits.empty:
@@ -230,10 +235,18 @@ def normalize_hits_dataframe(
         df = df[df["pattern_type"] == pattern_type]
     if pattern_id:
         df = df[df["pattern_id"] == pattern_id]
+    if strength_level:
+        strength_col = None
+        for col in ("strength", "strength_level"):
+            if col in df.columns:
+                strength_col = col
+                break
+        if strength_col:
+            df = df[df[strength_col] == strength_level]
     if direction:
         # direction filtering will be applied after direction derivation
         df["_direction_filter"] = direction
-    return df
+    return df.sort_values("answer_time").reset_index(drop=True)
 
 
 def build_pattern_meta_from_hits(df_hits: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
@@ -284,7 +297,7 @@ def load_pattern_meta(timeframe: Optional[str] = None) -> Dict[str, Dict[str, An
                 "description": getattr(row, "definition", ""),
                 "tags": [],
                 "strength_level": getattr(row, "strength_level", None),
-                "status": "active",
+                "status": getattr(row, "status", "active"),
                 "support": getattr(row, "support", None),
                 "lift": getattr(row, "lift", None),
                 "stability": getattr(row, "stability", None),
@@ -295,7 +308,7 @@ def load_pattern_meta(timeframe: Optional[str] = None) -> Dict[str, Dict[str, An
         pid = pat.get("id") or pat.get("pattern_id")
         if not pid:
             continue
-        entry = meta.get(pid, {})
+        entry = meta.get(pid, {}) or {}
         entry.update(
             {
                 "pattern_id": pid,
@@ -329,6 +342,16 @@ def load_pattern_meta(timeframe: Optional[str] = None) -> Dict[str, Dict[str, An
         for pid, entry in meta_hits.items():
             if pid not in meta:
                 meta[pid] = entry
+            else:
+                # fill missing numeric fields from hits if not already set
+                if meta[pid].get("support") is None:
+                    meta[pid]["support"] = entry.get("support")
+                if meta[pid].get("lift") is None:
+                    meta[pid]["lift"] = entry.get("lift")
+                if meta[pid].get("stability") is None:
+                    meta[pid]["stability"] = entry.get("stability")
+                if meta[pid].get("strength_level") is None:
+                    meta[pid]["strength_level"] = entry.get("strength_level")
 
     return meta
 

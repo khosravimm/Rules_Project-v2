@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(72, 140, 255, 0.12), transparent 22%),
-    radial-gradient(circle at 90% 10%, rgba(61, 214, 158, 0.14), transparent 20%),
-    linear-gradient(135deg, #0f172a 0%, #0b1220 35%, #0f1628 100%);
+  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08), transparent 22%),
+    radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.08), transparent 20%),
+    linear-gradient(135deg, #f8fafc 0%, #eef2f7 40%, #e5e7eb 100%);
 }
 
 body {
   margin: 0;
   font-family: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
   background: var(--bg-gradient);
-  color: #e5e7eb;
+  color: #111827;
 }
 
 .glass-panel {
-  @apply bg-white/5 border border-white/10 backdrop-blur-xl shadow-panel rounded-2xl;
+  @apply bg-white border border-slate-200 shadow-lg rounded-2xl;
 }
 
 .button-primary {
@@ -24,13 +24,13 @@ body {
 }
 
 .button-ghost {
-  @apply border border-white/20 text-white px-3 py-2 rounded-lg hover:bg-white/10 transition;
+  @apply border border-slate-200 text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition;
 }
 
 .section-title {
-  @apply text-sm uppercase tracking-widest text-slate-200/70;
+  @apply text-sm uppercase tracking-[0.18em] text-slate-500;
 }
 
 .chip {
-  @apply px-2 py-1 rounded-md border border-white/15 bg-white/5 text-xs;
+  @apply px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-xs text-slate-700;
 }

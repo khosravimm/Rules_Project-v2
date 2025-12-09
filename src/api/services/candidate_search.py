@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -57,6 +58,23 @@ def _direction_from_returns(rets: np.ndarray) -> str:
     return "flat"
 
 
+@lru_cache(maxsize=6)
+def _prepared_features(timeframe: str) -> Tuple[pd.DataFrame, np.ndarray, str]:
+    """Load and prepare features once per timeframe (cached)."""
+    df = load_feature_frame(timeframe).sort_values("open_time").reset_index(drop=True)
+    feature_cols = FeatureConfig.get(timeframe, [])
+    if not feature_cols:
+        raise ValueError(f"No feature configuration for timeframe {timeframe}")
+    ret_col = "RET_4H" if timeframe == "4h" else "RET_5M"
+    missing = [c for c in feature_cols if c not in df.columns and c != ret_col]
+    if missing:
+        raise ValueError(f"Missing required feature columns: {missing}")
+    if ret_col not in df.columns:
+        df[ret_col] = np.log(df["close"]).diff().fillna(0.0)
+    normalized_all = _normalize_features(df, feature_cols)
+    return df, normalized_all, ret_col
+
+
 def search_similar_windows(
     timeframe: str,
     start_ts: pd.Timestamp,
@@ -65,24 +83,13 @@ def search_similar_windows(
     search_cap: Optional[int] = None,
 ) -> Tuple[Dict[str, Any], List[CandidateOccurrence]]:
     """Search for similar windows in history using cosine similarity on features."""
-    df = load_feature_frame(timeframe)
-    df = df.sort_values("open_time").reset_index(drop=True)
-    feature_cols = FeatureConfig.get(timeframe, [])
-    if not feature_cols:
-        raise ValueError(f"No feature configuration for timeframe {timeframe}")
-
-    # ensure required return column exists
-    ret_col = "RET_4H" if timeframe == "4h" else "RET_5M"
-    if ret_col not in df.columns:
-        # compute simple log return
-        df[ret_col] = np.log(df["close"] / df["open"])
+    df, normalized_all, ret_col = _prepared_features(timeframe)
 
     selected = df[(df["open_time"] >= start_ts) & (df["open_time"] <= end_ts)]
     if selected.empty:
         raise ValueError("Selected window has no candles")
     template_len = len(selected)
-    normalized_all = _normalize_features(df, feature_cols)
-    template_norm = _normalize_features(selected, feature_cols).reshape(-1)
+    template_norm = _normalize_features(selected, FeatureConfig[timeframe]).reshape(-1)
     if template_norm.size == 0:
         raise ValueError("Template window has no feature values")
 
@@ -92,11 +99,11 @@ def search_similar_windows(
     total_windows = len(df) - template_len + 1
     if total_windows <= 0:
         raise ValueError("Not enough history to search for candidates")
-    # Optional cap for very long 5m history
+
     start_index = 0
     end_index = len(df) - template_len + 1
     if search_cap is not None and total_windows > search_cap:
-        start_index = end_index - search_cap
+        start_index = max(0, end_index - search_cap)
 
     for i in range(start_index, end_index):
         window_vec = normalized_all[i : i + template_len].reshape(-1)
@@ -115,11 +122,10 @@ def search_similar_windows(
 
         entry_open = float(df["open"].iloc[entry_idx])
         entry_close = float(df["close"].iloc[entry_idx])
-        exit_close = float(df["close"].iloc[next_idx]) if next_idx < len(df) else entry_close
-        rr_denom = abs(entry_close - entry_open)
-        pnl_rr = None
-        if rr_denom > 0:
-            pnl_rr = (exit_close - entry_close) / rr_denom
+        next_close = float(df["close"].iloc[next_idx]) if next_idx < len(df) else entry_close
+        body = abs(entry_close - entry_open)
+        body = body if body > 1e-9 else abs(df["high"].iloc[entry_idx] - df["low"].iloc[entry_idx]) or 1e-9
+        pnl_rr = (next_close - entry_close) / body if body else None
 
         occ = CandidateOccurrence(
             start_ts=_isoformat(df["open_time"].iloc[i]),
@@ -153,4 +159,3 @@ def search_similar_windows(
 
 
 __all__ = ["search_similar_windows", "CandidateOccurrence"]
-

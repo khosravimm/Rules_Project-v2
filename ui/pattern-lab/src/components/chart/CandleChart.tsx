@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import {
-  CandlestickData,
-  ColorType,
-  Time,
-  UTCTimestamp,
-  createChart,
-} from "lightweight-charts";
+import { CandlestickData, ColorType, Time, UTCTimestamp, createChart } from "lightweight-charts";
 import { Candle, PatternHit } from "../../types/domain";
 import { useSelectionState } from "../../hooks/useSelectionState";
 import { useAppStore } from "../../store/useAppStore";
@@ -18,9 +12,9 @@ type CandleChartProps = {
 };
 
 const colorForHit = (hit: PatternHit) => {
-  if (hit.direction === "short") return "rgba(239, 68, 68, 0.28)";
-  if (hit.direction === "long") return "rgba(52, 211, 153, 0.28)";
-  return "rgba(94, 234, 212, 0.22)";
+  if (hit.direction === "short") return "rgba(239, 68, 68, 0.18)";
+  if (hit.direction === "long") return "rgba(16, 185, 129, 0.18)";
+  return "rgba(59, 130, 246, 0.12)";
 };
 
 export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }: CandleChartProps) => {
@@ -42,7 +36,7 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
   useEffect(() => {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "#0b1220" }, textColor: "#cbd5e1" },
+      layout: { background: { type: ColorType.Solid, color: "#f8fafc" }, textColor: "#1f2937" },
       width: containerRef.current.clientWidth,
       height: 420,
       rightPriceScale: { borderVisible: false },
@@ -50,10 +44,10 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
       crosshair: { mode: 1 },
     });
     const candleSeries = chart.addCandlestickSeries({
-      upColor: "#34d399",
+      upColor: "#22c55e",
       downColor: "#ef4444",
-      wickUpColor: "#34d399",
-      wickDownColor: "#ef4444",
+      wickUpColor: "#16a34a",
+      wickDownColor: "#dc2626",
       borderVisible: false,
     });
 
@@ -68,9 +62,10 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
     window.addEventListener("resize", resize);
 
     const renderBands = () => {
-      if (!overlayLayer) return;
+      if (!overlayLayer || !containerRef.current) return;
       overlayLayer.innerHTML = "";
       const timeScale = chart.timeScale();
+      const width = containerRef.current.clientWidth;
       const maxBands = 160;
       hits.slice(0, maxBands).forEach((hit) => {
         if (!hit.start_ts || !hit.end_ts) return;
@@ -78,15 +73,17 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
         const t1 = timeScale.timeToCoordinate(Math.floor(new Date(hit.end_ts).getTime() / 1000) as Time);
         if (t0 === null || t1 === null) return;
         const left = Math.min(t0, t1);
-        const width = Math.max(2, Math.abs(t1 - t0));
+        const right = Math.max(t0, t1);
+        if (right < 0 || left > width) return;
+        const bandWidth = Math.max(2, Math.abs(t1 - t0));
         const band = document.createElement("div");
         band.style.position = "absolute";
         band.style.left = `${left}px`;
-        band.style.width = `${width}px`;
+        band.style.width = `${bandWidth}px`;
         band.style.top = "0";
         band.style.bottom = "0";
         band.style.background = colorForHit(hit);
-        band.style.border = hit.pattern_id === selectedPatternId ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent";
+        band.style.border = hit.pattern_id === selectedPatternId ? "1px solid rgba(16,185,129,0.6)" : "1px solid transparent";
         band.style.pointerEvents = "none";
         overlayLayer.appendChild(band);
       });
@@ -95,15 +92,15 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
         const t1 = timeScale.timeToCoordinate(Math.floor(new Date(candidateWindow.end_ts).getTime() / 1000) as Time);
         if (t0 !== null && t1 !== null) {
           const left = Math.min(t0, t1);
-          const width = Math.max(4, Math.abs(t1 - t0));
+          const bandWidth = Math.max(4, Math.abs(t1 - t0));
           const band = document.createElement("div");
           band.style.position = "absolute";
           band.style.left = `${left}px`;
-          band.style.width = `${width}px`;
+          band.style.width = `${bandWidth}px`;
           band.style.top = "0";
           band.style.bottom = "0";
-          band.style.background = "rgba(59,130,246,0.18)";
-          band.style.border = "1px solid rgba(59,130,246,0.5)";
+          band.style.background = "rgba(59,130,246,0.15)";
+          band.style.border = "1px solid rgba(59,130,246,0.4)";
           band.style.pointerEvents = "none";
           overlayLayer.appendChild(band);
         }
@@ -119,20 +116,26 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectionMode }:
     }));
     candleSeries.setData(candleData);
 
-    const markerData = hits.slice(0, 500).map((hit) => {
+    const bestMarkerByCandle = new Map<UTCTimestamp, PatternHit>();
+    hits.forEach((hit) => {
       const time = hit.entry_candle_ts || hit.end_ts || hit.start_ts;
-      const ts = time ? (Math.floor(new Date(time).getTime() / 1000) as UTCTimestamp) : undefined;
-      return ts
-        ? {
-            time: ts,
-            position: "aboveBar" as const,
-            color: hit.direction === "short" ? "#ef4444" : "#34d399",
-            shape: hit.direction === "short" ? "arrowDown" : "arrowUp",
-            text: hit.pattern_id,
-          }
-        : null;
+      if (!time) return;
+      const ts = Math.floor(new Date(time).getTime() / 1000) as UTCTimestamp;
+      const current = bestMarkerByCandle.get(ts);
+      const score = (hit.accuracy ?? hit.lift ?? 0) as number;
+      const currentScore = current ? (current.accuracy ?? current.lift ?? 0) : -Infinity;
+      if (!current || score > currentScore) {
+        bestMarkerByCandle.set(ts, hit);
+      }
     });
-    candleSeries.setMarkers(markerData.filter(Boolean) as any[]);
+    const markerData = Array.from(bestMarkerByCandle.entries()).map(([ts, hit]) => ({
+      time: ts,
+      position: "aboveBar" as const,
+      color: hit.direction === "short" ? "#ef4444" : "#22c55e",
+      shape: hit.direction === "short" ? "arrowDown" : "arrowUp",
+      text: hit.pattern_id,
+    }));
+    candleSeries.setMarkers(markerData);
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(renderBands);
     renderBands();

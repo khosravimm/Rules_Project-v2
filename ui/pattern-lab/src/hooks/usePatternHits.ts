@@ -19,6 +19,7 @@ export const usePatternHits = (refreshKey = 0) => {
           direction: filters.direction !== "all" ? filters.direction : undefined,
           start: dateRange.start,
           end: dateRange.end,
+          strength: filters.strengths.length === 1 ? filters.strengths[0] : undefined,
         });
         if (!mounted) return;
         setPatternHits(res.hits);
@@ -37,6 +38,7 @@ export const usePatternHits = (refreshKey = 0) => {
     timeframe,
     filters.patternTypes.join(","),
     filters.direction,
+    filters.strengths.join(","),
     dateRange.start,
     dateRange.end,
     setPatternHits,
