@@ -28,6 +28,8 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
     patternMeta,
     selectedPatternId,
     candidateWindow,
+    selectedHit,
+    setDateRange,
   } = useAppStore();
 
   useCandles(refreshKey);
@@ -39,11 +41,28 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
     setSelectedPatternId(undefined);
   }, [timeframe, setSelectedHit, setSelectedPatternId]);
 
+  useEffect(() => {
+    if (!selectedHit) return;
+    const center = selectedHit.entry_candle_ts || selectedHit.end_ts || selectedHit.start_ts;
+    if (!center) return;
+    const deltaSec = timeframe === "4h" ? 4 * 3600 : 5 * 60;
+    const c = new Date(center);
+    const start = new Date(c.getTime() - 80 * deltaSec * 1000).toISOString();
+    const end = new Date(c.getTime() + 40 * deltaSec * 1000).toISOString();
+    setDateRange({ start, end });
+  }, [selectedHit, timeframe, setDateRange]);
+
   const metaList = useMemo<PatternMeta[]>(() => Object.values(patternMeta), [patternMeta]);
 
   return (
     <div className="space-y-4">
-      <CandleChart candles={candles} hits={patternHits} selectedPatternId={selectedPatternId} selectionMode={selectionMode} />
+      <CandleChart
+        candles={candles}
+        hits={patternHits}
+        selectedPatternId={selectedPatternId}
+        selectedHit={selectedHit}
+        selectionMode={selectionMode}
+      />
       <PatternHitsTable
         hits={patternHits}
         loading={hitsLoading}

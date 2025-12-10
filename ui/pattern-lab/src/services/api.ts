@@ -29,17 +29,26 @@ export interface PatternMetaResponse {
   patterns: PatternMeta[];
 }
 
-export const fetchCandles = async (timeframe: Timeframe, start?: string, end?: string) => {
+export const fetchCandles = async (
+  timeframe: Timeframe,
+  opts: { start?: string; end?: string; center?: string; beforeBars?: number; afterBars?: number } = {},
+) => {
   const params: Record<string, string | number> = { timeframe };
-  if (start) params.start = start;
-  if (end) params.end = end;
+  if (opts.center) {
+    params.center = opts.center;
+    if (opts.beforeBars !== undefined) params.before_bars = opts.beforeBars;
+    if (opts.afterBars !== undefined) params.after_bars = opts.afterBars;
+  } else {
+    if (opts.start) params.start = opts.start;
+    if (opts.end) params.end = opts.end;
+  }
   const { data } = await api.get<CandlesResponse>("/api/candles", { params });
   return data;
 };
 
 export const fetchPatternHits = async (
   timeframe: Timeframe,
-  filters: { patternType?: string; direction?: string; start?: string | null; end?: string | null; strength?: string } = {},
+  filters: { patternType?: string; direction?: string; start?: string | null; end?: string | null; strength?: string; limit?: number } = {},
 ) => {
   const params: Record<string, string> = { timeframe };
   if (filters.patternType) params.pattern_type = filters.patternType;
@@ -47,6 +56,7 @@ export const fetchPatternHits = async (
   if (filters.start) params.start = filters.start;
   if (filters.end) params.end = filters.end;
   if (filters.strength) params.strength_level = filters.strength;
+  if (filters.limit) params.limit = String(filters.limit);
   const { data } = await api.get<PatternHitsResponse>("/api/pattern-hits", { params });
   return data;
 };

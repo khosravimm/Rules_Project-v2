@@ -8,14 +8,23 @@ Run with:
 App will listen on http://127.0.0.1:8050
 """
 
+import os
 import pathlib
 from functools import lru_cache
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import dash
 from dash import Dash, dcc, html, dash_table, Input, Output, State
 import plotly.graph_objects as go
+import requests
+
+UI_TIMEZONE = "Asia/Tehran"
+TEHRAN_TZ = ZoneInfo("Asia/Tehran")
+WINDOW_BEFORE_DEFAULT = 80
+WINDOW_AFTER_DEFAULT = 40
+API_BASE_URL = os.getenv("PATTERN_API_URL", "http://127.0.0.1:8000")
 
 # ---------------------------------------------------------------------
 # Paths & data loading (single-time, in-memory for speed)
@@ -66,7 +75,7 @@ def _normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.DataFrame(
         {
-            "time": pd.to_datetime(df[ts_col]).dt.tz_localize(None),
+            "time": pd.to_datetime(df[ts_col], utc=True).dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None),
             "open": df[o_col].astype(float),
             "high": df[h_col].astype(float),
             "low": df[l_col].astype(float),
@@ -165,8 +174,12 @@ def _normalize_hits(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     else:
         out["strength"] = "weak"
 
-    out["start_time"] = pd.to_datetime(df[start_col]).dt.tz_localize(None)
-    out["ans_time"] = pd.to_datetime(df[ans_col]).dt.tz_localize(None)
+    start_ts_utc = pd.to_datetime(df[start_col], utc=True, errors="coerce")
+    ans_ts_utc = pd.to_datetime(df[ans_col], utc=True, errors="coerce")
+    out["start_time_utc"] = start_ts_utc
+    out["ans_time_utc"] = ans_ts_utc
+    out["start_time"] = start_ts_utc.dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+    out["ans_time"] = ans_ts_utc.dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
 
     out = out.sort_values("start_time")
 
@@ -228,6 +241,33 @@ def _load_all_data():
         f"4h hits: {len(hits_4h)}, 5m hits: {len(hits_5m)}"
     )
     return ohlc_4h, ohlc_5m, hits_4h, hits_5m
+
+
+def _fetch_candles_api(timeframe: str, center_ts: str, before: int, after: int) -> pd.DataFrame:
+    """Fetch candles from API using center window; fallback to empty frame on failure."""
+    try:
+        resp = requests.get(
+            f"{API_BASE_URL}/api/candles",
+            params={
+                "timeframe": timeframe,
+                "center": center_ts,
+                "window_before": before,
+                "window_after": after,
+            },
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"status {resp.status_code}: {resp.text}")
+        payload = resp.json()
+        candles = payload.get("candles", [])
+        if not candles:
+            return pd.DataFrame(columns=["open_time", "open", "high", "low", "close", "volume"])
+        df = pd.DataFrame(candles)
+        df["open_time"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+        return df.rename(columns={"timestamp": "open_time"})
+    except Exception as exc:  # noqa: broad-except
+        print(f"[UI] Warning: failed to fetch candles from API ({timeframe}): {exc}")
+        return pd.DataFrame(columns=["open_time", "open", "high", "low", "close", "volume"])
 
 
 # ---------------------------------------------------------------------
@@ -494,6 +534,7 @@ app.layout = html.Div(
     children=[
         dcc.Interval(id="data-loader", interval=250, n_intervals=0, max_intervals=1),
         dcc.Store(id="store-hits"),
+        dcc.Store(id="selected-hit-ts"),
         # Header
         html.Div(
             className="header",
@@ -1234,7 +1275,29 @@ def compute_hits_store(
         end_time=None,
     ).sort_values("score", ascending=False)
 
+    for col in ["start_time", "ans_time", "start_time_utc", "ans_time_utc"]:
+        if col in hits_filtered:
+            hits_filtered[col] = pd.to_datetime(hits_filtered[col], errors="coerce", utc=True)
+            hits_filtered[col] = hits_filtered[col].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     return hits_filtered.to_dict("records")
+
+
+@app.callback(
+    Output("selected-hit-ts", "data"),
+    Input("pattern-table", "active_cell"),
+    Input("store-hits", "data"),
+)
+def set_selected_hit(active_cell, hits_data):
+    df = pd.DataFrame(hits_data or [])
+    if df.empty:
+        return dash.no_update
+    if active_cell and "row" in active_cell and active_cell["row"] < len(df):
+        row = df.iloc[active_cell["row"]]
+        ts = row.get("ans_time_utc") or row.get("ans_time")
+        return ts
+    latest = df.sort_values("ans_time_utc" if "ans_time_utc" in df else "ans_time").iloc[-1]
+    return latest.get("ans_time_utc") or latest.get("ans_time")
 
 
 @app.callback(
@@ -1244,30 +1307,63 @@ def compute_hits_store(
     Input("overlay-checklist", "value"),
     Input("chart-4h", "relayoutData"),
     Input("max-hits-slider", "value"),
+    Input("selected-hit-ts", "data"),
 )
-def update_charts(hits_data, overlay_values, relayout, max_hits):
+def update_charts(hits_data, overlay_values, relayout, max_hits, selected_hit_ts):
     if overlay_values is None:
         overlay_values = []
     ohlc_4h, ohlc_5m, _, _ = _load_all_data()
     hits_df = pd.DataFrame(hits_data or [])
     if not hits_df.empty:
-        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"], errors="coerce").dt.tz_localize(None)
-        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"], errors="coerce").dt.tz_localize(None)
+        hits_df["start_time"] = pd.to_datetime(hits_df["start_time"], errors="coerce", utc=True)
+        hits_df["ans_time"] = pd.to_datetime(hits_df["ans_time"], errors="coerce", utc=True)
+        hits_df["start_time_utc"] = pd.to_datetime(hits_df.get("start_time_utc"), errors="coerce", utc=True)
+        hits_df["ans_time_utc"] = pd.to_datetime(hits_df.get("ans_time_utc"), errors="coerce", utc=True)
         hits_df["x0"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).min(axis=1)
         hits_df["x1"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).max(axis=1)
+        hits_df["x0_local"] = hits_df["x0"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+        hits_df["x1_local"] = hits_df["x1"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+        hits_df["ans_time_local"] = hits_df["ans_time"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
         hits_df = hits_df.dropna(subset=["x0", "x1"])
 
-    start_4h, end_4h = get_initial_window_4h(days=3)
-    if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
-        try:
-            start_4h = pd.to_datetime(relayout["xaxis.range[0]"]).tz_localize(None)
-            end_4h = pd.to_datetime(relayout["xaxis.range[1]"]).tz_localize(None)
-        except Exception:
-            pass
+    center_ts = None
+    if selected_hit_ts:
+        center_ts = pd.to_datetime(selected_hit_ts, utc=True, errors="coerce")
+    if center_ts is None and not hits_df.empty:
+        center_ts = hits_df["ans_time_utc"].dropna().max() if "ans_time_utc" in hits_df else hits_df["ans_time"].max()
+
+    # Fetch candles from API (preferred), fallback to local cache window
+    window_4h = None
+    window_5m = None
+    if center_ts is not None:
+        center_iso = center_ts.isoformat().replace("+00:00", "Z")
+        window_4h = _fetch_candles_api("4h", center_iso, WINDOW_BEFORE_DEFAULT, WINDOW_AFTER_DEFAULT)
+        window_5m = _fetch_candles_api("5m", center_iso, WINDOW_BEFORE_DEFAULT, WINDOW_AFTER_DEFAULT)
+
+    if window_4h is not None and not window_4h.empty:
+        start_4h = window_4h["open_time"].min()
+        end_4h = window_4h["open_time"].max()
+    else:
+        start_4h, end_4h = get_initial_window_4h(days=3)
+
+    if window_5m is None or window_5m.empty:
+        window_5m = None
 
     if not hits_df.empty and "x0" in hits_df:
+        start_utc = start_4h
+        end_utc = end_4h
+        if start_4h is not None and getattr(start_4h, "tzinfo", None) is None:
+            try:
+                start_utc = pd.Timestamp(start_4h).tz_localize(UI_TIMEZONE).tz_convert("UTC")
+            except Exception:
+                start_utc = start_4h
+        if end_4h is not None and getattr(end_4h, "tzinfo", None) is None:
+            try:
+                end_utc = pd.Timestamp(end_4h).tz_localize(UI_TIMEZONE).tz_convert("UTC")
+            except Exception:
+                end_utc = end_4h
         hits_window = hits_df[
-            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
+            (hits_df["x0"] <= end_utc) & (hits_df["x1"] >= start_utc)
         ]
     else:
         hits_window = hits_df
@@ -1279,13 +1375,34 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
     if max_hits is not None and max_hits > 0:
         hits_window = hits_window.head(max_hits)
 
-    df_4h = ohlc_4h[
-        (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
-    ].copy()
+    if not hits_window.empty and {"x0_local", "x1_local", "ans_time_local"}.issubset(hits_window.columns):
+        hits_window = hits_window.assign(
+            x0=hits_window["x0_local"],
+            x1=hits_window["x1_local"],
+            ans_time=hits_window["ans_time_local"],
+        )
 
-    df_5m = ohlc_5m[
-        (ohlc_5m["time"] >= start_4h) & (ohlc_5m["time"] <= end_4h)
-    ].copy()
+    if window_4h is not None:
+        df_4h = window_4h.copy()
+        df_4h["time"] = window_4h["open_time"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+    else:
+        df_4h = ohlc_4h[
+            (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
+        ].copy()
+
+    if window_5m is not None:
+        df_5m = window_5m.copy()
+        df_5m["time"] = window_5m["open_time"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+    else:
+        start_local = start_4h.tz_convert(UI_TIMEZONE).dt.tz_localize(None) if hasattr(start_4h, "dt") else (
+            start_4h.tz_convert(UI_TIMEZONE).tz_localize(None) if getattr(start_4h, "tzinfo", None) else start_4h
+        )
+        end_local = end_4h.tz_convert(UI_TIMEZONE).dt.tz_localize(None) if hasattr(end_4h, "dt") else (
+            end_4h.tz_convert(UI_TIMEZONE).tz_localize(None) if getattr(end_4h, "tzinfo", None) else end_4h
+        )
+        df_5m = ohlc_5m[
+            (ohlc_5m["time"] >= start_local) & (ohlc_5m["time"] <= end_local)
+        ].copy()
 
     fig_4h = make_candlestick_figure(df_4h, "BTCUSDT - 4H Candles")
     fig_5m = make_candlestick_figure(df_5m, "BTCUSDT - 5M Candles")
@@ -1551,43 +1668,88 @@ def update_charts(hits_data, overlay_values, relayout, max_hits):
     Input("chart-4h", "relayoutData"),
     Input("chart-4h", "clickData"),
     Input("max-hits-slider", "value"),
+    Input("selected-hit-ts", "data"),
 )
-def update_tables(hits_data, relayout, click_data, max_hits):
+def update_tables(hits_data, relayout, click_data, max_hits, selected_hit_ts):
     ohlc_4h, _, _, _ = _load_all_data()
     hits_df = pd.DataFrame(hits_data or [])
     if not hits_df.empty:
         hits_df["start_time"] = (
-            pd.to_datetime(hits_df["start_time"], errors="coerce")
-            .dt.tz_localize(None)
+            pd.to_datetime(hits_df["start_time"], errors="coerce", utc=True)
         )
         hits_df["ans_time"] = (
-            pd.to_datetime(hits_df["ans_time"], errors="coerce")
-            .dt.tz_localize(None)
+            pd.to_datetime(hits_df["ans_time"], errors="coerce", utc=True)
         )
+        hits_df["start_time_utc"] = pd.to_datetime(hits_df.get("start_time_utc"), errors="coerce", utc=True)
+        hits_df["ans_time_utc"] = pd.to_datetime(hits_df.get("ans_time_utc"), errors="coerce", utc=True)
         hits_df["x0"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).min(axis=1)
         hits_df["x1"] = pd.DataFrame({"a": hits_df["start_time"], "b": hits_df["ans_time"]}).max(axis=1)
+        hits_df["x0_local"] = hits_df["x0"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+        hits_df["x1_local"] = hits_df["x1"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+        hits_df["ans_time_local"] = hits_df["ans_time"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
         hits_df = hits_df.dropna(subset=["x0", "x1"])
 
-    start_4h, end_4h = get_initial_window_4h(days=3)
-    if relayout and "xaxis.range[0]" in relayout and "xaxis.range[1]" in relayout:
-        try:
-            start_4h = pd.to_datetime(relayout["xaxis.range[0]"]).tz_localize(None)
-            end_4h = pd.to_datetime(relayout["xaxis.range[1]"]).tz_localize(None)
-        except Exception:
-            pass
+    start_4h = None
+    end_4h = None
+    window_4h = None
+    center_ts = None
+    if selected_hit_ts:
+        center_ts = pd.to_datetime(selected_hit_ts, utc=True, errors="coerce")
+    if center_ts is None and not hits_df.empty:
+        center_ts = hits_df["ans_time_utc"].dropna().max() if "ans_time_utc" in hits_df else hits_df["ans_time"].max()
 
-    df_4h = ohlc_4h[
-        (ohlc_4h["time"] >= start_4h) & (ohlc_4h["time"] <= end_4h)
-    ].copy()
+    if center_ts is not None and not pd.isna(center_ts):
+        center_iso = center_ts.isoformat().replace("+00:00", "Z")
+        window_4h = _fetch_candles_api("4h", center_iso, WINDOW_BEFORE_DEFAULT, WINDOW_AFTER_DEFAULT)
+        if not window_4h.empty:
+            start_4h = window_4h["open_time"].min()
+            end_4h = window_4h["open_time"].max()
+
+    if start_4h is None or end_4h is None:
+        start_4h, end_4h = get_initial_window_4h(days=3)
+
+    if window_4h is not None and not window_4h.empty:
+        df_4h = window_4h.copy()
+        df_4h["time"] = window_4h["open_time"].dt.tz_convert(UI_TIMEZONE).dt.tz_localize(None)
+    else:
+        start_local = start_4h.tz_convert(UI_TIMEZONE).dt.tz_localize(None) if hasattr(start_4h, "dt") else (
+            start_4h.tz_convert(UI_TIMEZONE).tz_localize(None) if getattr(start_4h, "tzinfo", None) else start_4h
+        )
+        end_local = end_4h.tz_convert(UI_TIMEZONE).dt.tz_localize(None) if hasattr(end_4h, "dt") else (
+            end_4h.tz_convert(UI_TIMEZONE).tz_localize(None) if getattr(end_4h, "tzinfo", None) else end_4h
+        )
+        df_4h = ohlc_4h[
+            (ohlc_4h["time"] >= start_local) & (ohlc_4h["time"] <= end_local)
+        ].copy()
 
     if not hits_df.empty and "x0" in hits_df:
+        start_utc = start_4h
+        end_utc = end_4h
+        if start_4h is not None and getattr(start_4h, "tzinfo", None) is None:
+            try:
+                start_utc = pd.Timestamp(start_4h).tz_localize(UI_TIMEZONE).tz_convert("UTC")
+            except Exception:
+                start_utc = start_4h
+        if end_4h is not None and getattr(end_4h, "tzinfo", None) is None:
+            try:
+                end_utc = pd.Timestamp(end_4h).tz_localize(UI_TIMEZONE).tz_convert("UTC")
+            except Exception:
+                end_utc = end_4h
         hits_window = hits_df[
-            (hits_df["x0"] <= end_4h) & (hits_df["x1"] >= start_4h)
+            (hits_df["x0"] <= end_utc) & (hits_df["x1"] >= start_utc)
         ]
     else:
         hits_window = hits_df
     if max_hits is not None and max_hits > 0:
         hits_window = hits_window.head(max_hits)
+
+    if not hits_window.empty and {"x0_local", "x1_local", "ans_time_local"}.issubset(hits_window.columns):
+        hits_window = hits_window.assign(
+            x0=hits_window["x0_local"],
+            x1=hits_window["x1_local"],
+            start_time=hits_window["x0_local"],
+            ans_time=hits_window["ans_time_local"],
+        )
     pattern_table_data = hits_window.to_dict("records")
 
     candle_summary = ""
@@ -1617,8 +1779,9 @@ def update_tables(hits_data, relayout, click_data, max_hits):
         else:
             candle_hits = hits_window
 
+        time_str = candle_time.strftime("%Y-%m-%d %H:%M")
         candle_summary = (
-            f"Candle @ {candle_time} · "
+            f"Candle @ {time_str} ({UI_TIMEZONE}) · "
             f"O: {candle_row['open']:.2f} · "
             f"H: {candle_row['high']:.2f} · "
             f"L: {candle_row['low']:.2f} · "

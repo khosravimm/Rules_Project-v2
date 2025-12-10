@@ -18,6 +18,10 @@
 - بخش‌ها: meta, datasets, features, clusters, patterns, trading_rules, rule_relations, cross_market_patterns, market_relations, backtests, performance_over_time, status_history.
 - قیود: ID یکتا در هر بخش؛ ارجاع‌ها (`dataset_used`, `pattern_refs`, `rule_id`, …) باید معتبر باشد؛ ترجیح تک‌فایل `kb/*_knowledge.yaml`، اگر چندفایلی شد باید همچنان با Schema و ارجاعات معتبر بماند؛ مقدارهای مجاز: نوع الگو {forward, backward, meta}، وضعیت {exploratory, candidate, active, watchlist, deprecated}، جهت {long, short, filter_only}، نوع رابطه {conflict, confirm, complement}.
 
+### زمان و Timezone
+- همه timestamp های لایه داده (parquet/KB/API) UTC ذخیره و برگردانده می‌شوند.
+- UI نمایش پیش‌فرض: Asia/Tehran (display human-friendly بدون 'T'/'Z'; در کنار آن می‌توان UTC کوچک نشان داد).
+
 ### سیاست فایل و الزام‌ها (MASTER_KNOWLEDGE)
 - `knowledge_base.file_strategy.single_file_initial = true` با مسیر `kb/btcusdt_4h_knowledge.yaml`.
 - `enforcement`: تک‌فایل پیش‌فرض، یکتایی ID، ولیدیشن ارجاع‌ها.  

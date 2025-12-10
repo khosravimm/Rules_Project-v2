@@ -28,6 +28,7 @@ class CandlesResponse(BaseModel):
 # Pattern hits
 # ---------------------------------------------------------------------------
 class PatternHit(BaseModel):
+    timeframe: Optional[str] = None
     pattern_id: str
     pattern_type: Optional[str] = None
     direction: Optional[str] = None

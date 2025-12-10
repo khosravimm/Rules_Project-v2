@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppStore } from "../../store/useAppStore";
+import { formatTehranWithLabel } from "../../utils/time";
 
 const CandleInspector = () => {
   const { selectedCandle, patternHits, setSelectedHit, setSelectedPatternId, patternMeta } = useAppStore();
@@ -29,7 +30,7 @@ const CandleInspector = () => {
       <p className="section-title mb-1">Candle Inspector</p>
       <div className="flex items-center justify-between mb-3">
         <div>
-          <p className="text-slate-900 font-semibold">{selectedCandle.timestamp}</p>
+          <p className="text-slate-900 font-semibold">{formatTehranWithLabel(selectedCandle.timestamp)}</p>
           <p className="text-slate-600 text-sm">
             O {selectedCandle.open.toFixed(2)} | H {selectedCandle.high.toFixed(2)} | L {selectedCandle.low.toFixed(2)} | C{" "}
             {selectedCandle.close.toFixed(2)}

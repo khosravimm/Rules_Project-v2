@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PatternHit } from "../../types/domain";
 import { useAppStore } from "../../store/useAppStore";
+import { formatTehran } from "../../utils/time";
 
 type Props = {
   hits: PatternHit[];
@@ -184,8 +185,8 @@ const PatternHitsTable = ({ hits, onSelect, loading = false, error = null }: Pro
                   <td className="py-1">{hit.pattern_id}</td>
                   <td className="py-1 capitalize">{hit.pattern_type}</td>
                   <td className="py-1">{hit.direction || "?"}</td>
-                  <td className="py-1 text-slate-500">{hit.start_ts?.slice(0, 16)}</td>
-                  <td className="py-1 text-slate-500">{hit.end_ts?.slice(0, 16)}</td>
+          <td className="py-1 text-slate-500">{formatTehran(hit.start_ts)}</td>
+          <td className="py-1 text-slate-500">{formatTehran(hit.end_ts)}</td>
                   <td className="py-1">{hit.accuracy?.toFixed(2) ?? "-"}</td>
                   <td className="py-1">{hit.lift ? hit.lift.toFixed(2) : "-"}</td>
                   <td className="py-1">{hit.support ? hit.support.toFixed(0) : "-"}</td>

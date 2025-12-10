@@ -8,9 +8,10 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.config import SUPPORTED_TIMEFRAMES
 from api.schemas import Candle, CandlesResponse, PatternHit, PatternHitsResponse
-from api.services.candle_service import fetch_candles, fetch_latest_candle
+from api.services.candle_service import fetch_candles, fetch_latest_candle, get_window_around
 from api.services.data_access import DEFAULT_SYMBOL, _to_utc, load_candles_between
 from api.services.pattern_service import fetch_pattern_hits
+from api.utils.time_windows import compute_time_window_around
 from core.candles import derive_direction_from_candles
 
 router = APIRouter()
@@ -20,8 +21,13 @@ router = APIRouter()
 def get_candles(
     symbol: str = Query(DEFAULT_SYMBOL),
     timeframe: str = Query("4h"),
-    start: Optional[str] = Query(None, description="ISO-8601 UTC start"),
-    end: Optional[str] = Query(None, description="ISO-8601 UTC end"),
+    start: Optional[str] = Query(None, description="ISO-8601 start (tz-aware; UTC assumed if missing)"),
+    end: Optional[str] = Query(None, description="ISO-8601 end (tz-aware; UTC assumed if missing)"),
+    center: Optional[str] = Query(None, description="Center timestamp (ISO-8601, tz-aware) to build a window around"),
+    before_bars: Optional[int] = Query(None, ge=0, description="Number of candles before center (default 80)"),
+    after_bars: Optional[int] = Query(None, ge=0, description="Number of candles after center (default 40)"),
+    window_before: Optional[int] = Query(None, alias="window_before", ge=0, include_in_schema=False),
+    window_after: Optional[int] = Query(None, alias="window_after", ge=0, include_in_schema=False),
     limit: int = Query(500, ge=1, le=5000),
 ) -> CandlesResponse:
     tf = timeframe.lower()
@@ -30,12 +36,36 @@ def get_candles(
 
     start_ts = _to_utc(start) if start else None
     end_ts = _to_utc(end) if end else None
+    center_ts = _to_utc(center) if center else None
+
+    if center_ts is not None and (start_ts is not None or end_ts is not None):
+        raise HTTPException(status_code=400, detail="Use either start/end or center/window parameters, not both.")
+    if center_ts is None and ((start_ts is None) ^ (end_ts is None)):
+        raise HTTPException(status_code=400, detail="Both start and end must be provided together.")
+
+    if start_ts is not None:
+        start_ts = pd.to_datetime(start_ts, utc=True)
+    if end_ts is not None:
+        end_ts = pd.to_datetime(end_ts, utc=True)
+
     try:
-        df = fetch_candles(tf, start_ts, end_ts, limit)
+        if center_ts is not None:
+            before = before_bars if before_bars is not None else (window_before if window_before is not None else 80)
+            after = after_bars if after_bars is not None else (window_after if window_after is not None else 40)
+            df = get_window_around(tf, center_ts, before, after)
+        else:
+            df = fetch_candles(tf, start_ts, end_ts, limit)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=f"failed to load candles: {exc!r}")
+
+    if start_ts is not None:
+        df = df[df["open_time"] >= start_ts]
+    if end_ts is not None:
+        df = df[df["open_time"] <= end_ts]
 
     candles: List[Candle] = []
     for row in df.itertuples():
@@ -82,6 +112,12 @@ def get_pattern_hits(
         direction=direction,
         strength_level=strength_level,
     )
+    if not df_hits.empty:
+        if start_ts is not None:
+            df_hits = df_hits[df_hits["answer_time"] >= start_ts]
+        if end_ts is not None:
+            df_hits = df_hits[df_hits["answer_time"] <= end_ts]
+
     if df_hits.empty:
         return PatternHitsResponse(symbol=symbol, timeframe=tf, hits=[])
 
@@ -98,6 +134,7 @@ def get_pattern_hits(
             continue
         hits.append(
             PatternHit(
+                timeframe=tf,
                 pattern_id=str(getattr(row, "pattern_id", "")),
                 pattern_type=getattr(row, "pattern_type", None),
                 direction=derived_dir,

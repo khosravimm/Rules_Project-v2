@@ -130,6 +130,29 @@ data_design:
         فعلی وزن بیشتری می‌گیرند تا سیستم به رفتار جدید حساس‌تر شود.
 
         '
+time_and_timezone:
+  storage_time_zone: "UTC"
+  ui_display_time_zone_default: "Asia/Tehran"
+  api_time_rules:
+    inputs:
+      iso8601_required: true
+      timezone_required: true
+      default_if_missing: UTC
+    storage:
+      canonical_timezone: UTC
+      scope: [parquet, knowledge_base, loaders, apis]
+    outputs:
+      timezone: UTC
+      notes:
+      - UI converts to display timezone; backend always returns UTC.
+  patternlab_time_alignment:
+    chart_window_source: "selected_hit_center"
+    default_window:
+      before_bars: 80
+      after_bars: 40
+    rules:
+    - Pattern Lab charts must center on the selected hit timestamp (not arbitrary last-N).
+    - Candles and hits must align on the same timeline; hits should map to exact 4h/5m candles.
 DATA_LOADER:
   canonical_loader: src/data/ohlcv_loader.py::load_ohlcv
   btcusdt_market_id: BTCUSDT_PERP

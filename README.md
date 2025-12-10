@@ -6,3 +6,4 @@ Enterprise-grade research environment for BTCUSDT pattern discovery. Backend use
 - Frontend entry: `cd ui/pattern-lab && npm install && npm run dev`
 - Knowledge base: `project/KNOWLEDGE_BASE/patterns/patterns.yaml`
 - Development guidelines: see `project/DEVELOPMENT_GUIDELINES_FA_EN.md`
+- Timezone standard: all stored/served timestamps are UTC; UI renders in Asia/Tehran (human-friendly, no trailing `T`/`Z` in display).
