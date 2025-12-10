@@ -56,16 +56,16 @@ const Sidebar = ({ showFilters = false }: SidebarProps) => {
   };
 
   const reset = () => {
-    const defaults = {
-      patternTypes: ["sequence", "candle_shape", "feature_rule"],
+    const cleared = {
+      patternTypes: [],
       direction: "all" as const,
-      strengths: ["strong", "medium", "weak", "aging"],
+      strengths: [],
       start: null,
       end: null,
     };
-    setLocalFilters(defaults);
+    setLocalFilters(cleared);
     setLocalRange({ start: null, end: null });
-    setFilters(defaults);
+    setFilters(cleared);
     setDateRange({ start: null, end: null });
   };
 

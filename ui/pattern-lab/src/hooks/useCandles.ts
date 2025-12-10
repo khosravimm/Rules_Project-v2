@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchCandles } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
 import { Candle } from "../types/domain";
+import { toUtcIsoFromLocalInput } from "../utils/time";
 
 export const useCandles = (refreshKey = 0) => {
   const { timeframe, dateRange, setCandles, selectedHit } = useAppStore();
@@ -20,13 +21,16 @@ export const useCandles = (refreshKey = 0) => {
           center
             ? { center, beforeBars: 80, afterBars: 40 }
             : {
-                start: dateRange.start || undefined,
-                end: dateRange.end || undefined,
+                start: toUtcIsoFromLocalInput(dateRange.start),
+                end: toUtcIsoFromLocalInput(dateRange.end),
                 limit: timeframe === "4h" ? 10000 : 300000,
               },
         );
         if (!mounted) return;
-        setCandles(res.candles);
+        const sorted = [...res.candles]
+          .filter((c) => c.timestamp)
+          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        setCandles(sorted);
       } catch (err: any) {
         if (!mounted) return;
         setError(err?.message || "Failed to load candles");

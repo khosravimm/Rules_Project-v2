@@ -47,9 +47,9 @@ const PatternLabPage = ({ refreshKey, selectionMode }: PatternLabPageProps) => {
     if (!center) return;
     const deltaSec = timeframe === "4h" ? 4 * 3600 : 5 * 60;
     const c = new Date(center);
-    const start = new Date(c.getTime() - 80 * deltaSec * 1000).toISOString();
-    const end = new Date(c.getTime() + 40 * deltaSec * 1000).toISOString();
-    setDateRange({ start, end });
+    const startIso = new Date(c.getTime() - 80 * deltaSec * 1000).toISOString().slice(0, 16); // datetime-local friendly
+    const endIso = new Date(c.getTime() + 40 * deltaSec * 1000).toISOString().slice(0, 16);
+    setDateRange({ start: startIso, end: endIso });
   }, [selectedHit, timeframe, setDateRange]);
 
   const metaList = useMemo<PatternMeta[]>(() => Object.values(patternMeta), [patternMeta]);

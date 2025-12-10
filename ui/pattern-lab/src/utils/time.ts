@@ -20,3 +20,11 @@ export const formatTehranWithLabel = (iso?: string | null) => {
   if (base === "-") return base;
   return `${base} (Tehran)`;
 };
+
+export const toUtcIsoFromLocalInput = (local?: string | null): string | undefined => {
+  if (!local) return undefined;
+  // datetime-local control emits "YYYY-MM-DDTHH:mm"
+  // interpret as UTC (per backend rule: missing tz => UTC)
+  const iso = new Date(`${local}Z`).toISOString();
+  return iso;
+};

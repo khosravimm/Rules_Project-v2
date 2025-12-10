@@ -24,16 +24,35 @@ const toChartTime = (iso?: string | null): UTCTimestamp | null => {
 export const CandleChart = ({ candles, hits, selectedPatternId, selectedHit, selectionMode }: CandleChartProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  const sortedCandles = useMemo(() => {
+    const arr = candles
+      .filter((c) => c.timestamp)
+      .map((c) => ({ ...c, __ts: Date.parse(c.timestamp) }))
+      .filter((c) => !Number.isNaN(c.__ts))
+      .sort((a, b) => a.__ts - b.__ts);
+    // enforce strictly increasing by dropping duplicates
+    const unique: Candle[] = [];
+    let lastTs = -Infinity;
+    for (const c of arr) {
+      if (c.__ts > lastTs) {
+        unique.push({ ...c });
+        lastTs = c.__ts;
+      }
+    }
+    return unique;
+  }, [candles]);
+
   const candleMap = useMemo(() => {
     const map = new Map<UTCTimestamp, Candle>();
-    candles.forEach((c) => {
+    sortedCandles.forEach((c) => {
       const ts = toChartTime(c.timestamp);
       if (ts !== null) {
         map.set(ts, c);
       }
     });
     return map;
-  }, [candles]);
+  }, [sortedCandles]);
 
   const { startSelection, extendSelection, candidateWindow } = useSelectionState();
   const setSelectedCandle = useAppStore((s) => s.setSelectedCandle);
@@ -150,18 +169,21 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectedHit, sel
           bestMarkerByCandle.set(ts, hit);
         }
       });
-      const markerData = Array.from(bestMarkerByCandle.entries()).map(([ts, hit]) => {
-        const dir = hit.direction;
-        const isShort = dir === "short";
-        const isLong = dir === "long";
-        return {
-          time: ts,
-          position: "aboveBar" as const,
-          color: isShort ? "#ef4444" : isLong ? "#16a34a" : "#3b82f6",
-          shape: isShort ? "arrowDown" : isLong ? "arrowUp" : "circle",
-          text: hit.pattern_id,
-        };
-      });
+      const markerData = Array.from(bestMarkerByCandle.entries())
+        .map(([ts, hit]) => {
+          const dir = hit.direction;
+          const isShort = dir === "short";
+          const isLong = dir === "long";
+          return {
+            time: ts,
+            position: "aboveBar" as const,
+            color: isShort ? "#ef4444" : isLong ? "#16a34a" : "#3b82f6",
+            shape: isShort ? "arrowDown" : isLong ? "arrowUp" : "circle",
+            text: hit.pattern_id,
+          };
+        })
+        .filter((m) => Number.isFinite(m.time))
+        .sort((a, b) => (a.time as number) - (b.time as number));
       candleSeries.setMarkers(markerData);
     };
 
@@ -173,7 +195,7 @@ export const CandleChart = ({ candles, hits, selectedPatternId, selectedHit, sel
     };
     window.addEventListener("resize", resize);
 
-    const candleData: CandlestickData[] = candles.reduce((acc: CandlestickData[], c) => {
+    const candleData: CandlestickData[] = sortedCandles.reduce((acc: CandlestickData[], c) => {
       const t = toChartTime(c.timestamp);
       if (t !== null) {
         acc.push({

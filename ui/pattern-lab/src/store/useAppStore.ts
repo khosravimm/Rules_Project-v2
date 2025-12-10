@@ -30,9 +30,9 @@ interface AppState {
 }
 
 const defaultFilters: FiltersState = {
-  patternTypes: ["sequence", "candle_shape", "feature_rule"],
+  patternTypes: [],
   direction: "all",
-  strengths: ["strong", "medium", "weak", "aging"],
+  strengths: [],
   start: null,
   end: null,
 };
@@ -67,4 +67,3 @@ export const useAppStore = create<AppState>((set) => ({
   setCandidateWindow: (candidateWindow) => set({ candidateWindow }),
   setCandidateResult: (candidateResult) => set({ candidateResult }),
 }));
-
