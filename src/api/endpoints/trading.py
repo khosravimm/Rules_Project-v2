@@ -28,7 +28,7 @@ def get_candles(
     after_bars: Optional[int] = Query(None, ge=0, description="Number of candles after center (default 40)"),
     window_before: Optional[int] = Query(None, alias="window_before", ge=0, include_in_schema=False),
     window_after: Optional[int] = Query(None, alias="window_after", ge=0, include_in_schema=False),
-    limit: int = Query(500, ge=1, le=5000),
+    limit: Optional[int] = Query(None, ge=1, le=500000),
 ) -> CandlesResponse:
     tf = timeframe.lower()
     if tf not in SUPPORTED_TIMEFRAMES:
@@ -94,7 +94,7 @@ def get_pattern_hits(
     direction: Optional[str] = Query(None),
     pattern_id: Optional[str] = Query(None),
     strength_level: Optional[str] = Query(None, description="strength level filter"),
-    limit: int = Query(400, ge=1, le=5000),
+    limit: int = Query(5000, ge=1, le=5000),
 ) -> PatternHitsResponse:
     tf = timeframe.lower()
     if tf not in SUPPORTED_TIMEFRAMES:
@@ -112,6 +112,9 @@ def get_pattern_hits(
         direction=direction,
         strength_level=strength_level,
     )
+    # Show most recent hits first before applying limit
+    if not df_hits.empty and "answer_time" in df_hits:
+        df_hits = df_hits.sort_values("answer_time", ascending=False).reset_index(drop=True)
     if not df_hits.empty:
         if start_ts is not None:
             df_hits = df_hits[df_hits["answer_time"] >= start_ts]

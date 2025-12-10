@@ -19,7 +19,11 @@ export const useCandles = (refreshKey = 0) => {
           timeframe,
           center
             ? { center, beforeBars: 80, afterBars: 40 }
-            : { start: dateRange.start || undefined, end: dateRange.end || undefined },
+            : {
+                start: dateRange.start || undefined,
+                end: dateRange.end || undefined,
+                limit: timeframe === "4h" ? 10000 : 300000,
+              },
         );
         if (!mounted) return;
         setCandles(res.candles);

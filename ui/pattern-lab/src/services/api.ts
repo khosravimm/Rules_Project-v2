@@ -31,7 +31,7 @@ export interface PatternMetaResponse {
 
 export const fetchCandles = async (
   timeframe: Timeframe,
-  opts: { start?: string; end?: string; center?: string; beforeBars?: number; afterBars?: number } = {},
+  opts: { start?: string; end?: string; center?: string; beforeBars?: number; afterBars?: number; limit?: number } = {},
 ) => {
   const params: Record<string, string | number> = { timeframe };
   if (opts.center) {
@@ -42,6 +42,7 @@ export const fetchCandles = async (
     if (opts.start) params.start = opts.start;
     if (opts.end) params.end = opts.end;
   }
+    if (opts.limit) params.limit = opts.limit;
   const { data } = await api.get<CandlesResponse>("/api/candles", { params });
   return data;
 };

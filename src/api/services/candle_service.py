@@ -7,7 +7,7 @@ import pandas as pd
 from api.services import data_access as da
 
 
-def fetch_candles(timeframe: str, start: Optional[pd.Timestamp], end: Optional[pd.Timestamp], limit: int) -> pd.DataFrame:
+def fetch_candles(timeframe: str, start: Optional[pd.Timestamp], end: Optional[pd.Timestamp], limit: Optional[int]) -> pd.DataFrame:
     df = da.load_candles_between(timeframe, start, end)
     if start is None and end is None and limit and not df.empty and len(df) > limit:
         df = df.tail(limit)
